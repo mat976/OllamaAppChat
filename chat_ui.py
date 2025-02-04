@@ -48,14 +48,32 @@ class OllamaChatApp:
         )
         self.sidebar_title.grid(row=0, column=0, padx=20, pady=(20, 10))
 
+        # Chat Management Buttons Frame
+        self.chat_buttons_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        self.chat_buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.chat_buttons_frame.grid_columnconfigure((0,1), weight=1)
+
         # New Chat Button
         self.new_chat_button = ctk.CTkButton(
-            self.sidebar_frame, 
-            text="+ New Chat", 
+            self.chat_buttons_frame, 
+            text="+ New", 
             command=self.create_new_chat,
-            corner_radius=20
+            corner_radius=20,
+            width=100
         )
-        self.new_chat_button.grid(row=1, column=0, padx=20, pady=10)
+        self.new_chat_button.grid(row=0, column=0, padx=5, pady=5)
+
+        # Clear Chats Button
+        self.clear_chats_button = ctk.CTkButton(
+            self.chat_buttons_frame, 
+            text="🗑️ Clear", 
+            command=self.clear_all_chats,
+            corner_radius=20,
+            width=100,
+            fg_color="red",
+            hover_color="darkred"
+        )
+        self.clear_chats_button.grid(row=0, column=1, padx=5, pady=5)
 
         # Chat List
         self.chat_list = ctk.CTkScrollableFrame(
@@ -75,9 +93,28 @@ class OllamaChatApp:
             self.chat_frame, 
             state="disabled", 
             font=ctk.CTkFont(size=14),
-            corner_radius=10
+            corner_radius=10,
+            wrap="word"
         )
         self.chat_text.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+        # Configure text tags for styling
+        self.chat_text.tag_config("user_tag", foreground="light blue")
+        self.chat_text.tag_config("ai_tag", foreground="light green")
+        self.chat_text.tag_config("think_button", 
+            foreground="white", 
+            background="gray",
+            borderwidth=1,
+            relief="raised"
+        )
+        
+        # Add hover effect for think button
+        self.chat_text.tag_bind("think_button", "<Enter>", 
+            lambda event: self.chat_text.config(cursor="hand2")
+        )
+        self.chat_text.tag_bind("think_button", "<Leave>", 
+            lambda event: self.chat_text.config(cursor="")
+        )
 
         # Model Selection
         self.model_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
@@ -183,11 +220,161 @@ class OllamaChatApp:
         for chat in chats:
             chat_button = ctk.CTkButton(
                 self.chat_list, 
-                text=f"Chat {chat['id'][:8]}",
+                text=chat.get('title', f"Chat {chat['id'][:8]}"),
                 command=lambda c=chat: self.load_chat(c),
-                corner_radius=10
+                corner_radius=10,
+                anchor="w"
             )
-            chat_button.pack(pady=5, fill='x')
+            # Add a custom attribute to help with deletion
+            chat_button.chat_id = chat['id']
+            
+            # Add a delete button for each chat
+            delete_button = ctk.CTkButton(
+                self.chat_list, 
+                text="🗑️", 
+                width=30,
+                fg_color="red", 
+                hover_color="darkred",
+                command=lambda c=chat: self.delete_specific_chat(c)
+            )
+            
+            # Create a frame to hold the chat and delete buttons
+            button_frame = ctk.CTkFrame(self.chat_list, fg_color="transparent")
+            button_frame.pack(pady=5, fill='x')
+            
+            chat_button.pack(side='left', expand=True, fill='x', padx=(0,5))
+            delete_button.pack(side='right', padx=(0,5))
+
+    def clear_all_chats(self):
+        """
+        Clear all chat sessions with confirmation
+        """
+        # Create a confirmation dialog
+        confirm = CTkMessagebox(
+            title="Confirm Clear Chats", 
+            message="Are you sure you want to clear all chats? This cannot be undone.",
+            icon="warning", 
+            option_1="Cancel", 
+            option_2="Clear"
+        )
+        
+        # Wait for user response
+        response = confirm.get()
+        
+        if response == "Clear":
+            # Clear all chats
+            self.chat_manager.clear_all_chats()
+            
+            # Clear the chat list
+            for widget in self.chat_list.winfo_children():
+                widget.destroy()
+            
+            # Reset current chat
+            self.current_chat = None
+            
+            # Clear chat text
+            self.chat_text.configure(state="normal")
+            self.chat_text.delete("1.0", "end")
+            self.chat_text.configure(state="disabled")
+            
+            # Show confirmation
+            CTkMessagebox(
+                title="Chats Cleared", 
+                message="All chat sessions have been cleared.", 
+                icon="info"
+            )
+
+    def delete_current_chat(self):
+        """
+        Delete the current chat session
+        """
+        if not self.current_chat:
+            CTkMessagebox(
+                title="Error", 
+                message="No chat selected to delete.", 
+                icon="cancel"
+            )
+            return
+
+        # Create a confirmation dialog
+        confirm = CTkMessagebox(
+            title="Confirm Delete Chat", 
+            message=f"Are you sure you want to delete this chat: {self.current_chat.get('title', 'Untitled Chat')}?",
+            icon="warning", 
+            option_1="Cancel", 
+            option_2="Delete"
+        )
+        
+        # Wait for user response
+        response = confirm.get()
+        
+        if response == "Delete":
+            # Delete the current chat
+            self.chat_manager.delete_chat(self.current_chat['id'])
+            
+            # Remove the chat button from the list
+            for widget in self.chat_list.winfo_children():
+                if hasattr(widget, 'chat_id') and widget.chat_id == self.current_chat['id']:
+                    widget.destroy()
+                    break
+            
+            # Reset current chat
+            self.current_chat = None
+            
+            # Clear chat text
+            self.chat_text.configure(state="normal")
+            self.chat_text.delete("1.0", "end")
+            self.chat_text.configure(state="disabled")
+            
+            # Show confirmation
+            CTkMessagebox(
+                title="Chat Deleted", 
+                message="The chat session has been deleted.", 
+                icon="info"
+            )
+
+    def delete_specific_chat(self, chat):
+        """
+        Delete a specific chat session
+        
+        Args:
+            chat (dict): Chat session to delete
+        """
+        # Create a confirmation dialog
+        confirm = CTkMessagebox(
+            title="Confirm Delete Chat", 
+            message=f"Are you sure you want to delete this chat: {chat.get('title', 'Untitled Chat')}?",
+            icon="warning", 
+            option_1="Cancel", 
+            option_2="Delete"
+        )
+        
+        # Wait for user response
+        response = confirm.get()
+        
+        if response == "Delete":
+            # Delete the chat
+            self.chat_manager.delete_chat(chat['id'])
+            
+            # Remove the chat button from the list
+            for widget in self.chat_list.winfo_children():
+                if hasattr(widget, 'chat_id') and widget.chat_id == chat['id']:
+                    widget.destroy()
+                    break
+            
+            # If the deleted chat was the current chat, reset
+            if self.current_chat and self.current_chat['id'] == chat['id']:
+                self.current_chat = None
+                self.chat_text.configure(state="normal")
+                self.chat_text.delete("1.0", "end")
+                self.chat_text.configure(state="disabled")
+            
+            # Show confirmation
+            CTkMessagebox(
+                title="Chat Deleted", 
+                message="The chat session has been deleted.", 
+                icon="info"
+            )
 
     def send_message(self, event=None):
         """Send a message in the current chat"""
@@ -223,25 +410,87 @@ class OllamaChatApp:
         )
         thread.start()
 
-    def display_message(self, role, content):
-        """Display a message in the chat text area"""
+    def display_message(self, role, content, think_content=None):
+        """
+        Display a message in the chat text area
+        
+        Args:
+            role (str): Message role (user/assistant)
+            content (str): Message content
+            think_content (str, optional): Internal thought content
+        """
         self.chat_text.configure(state="normal")
         
         # Determine formatting based on role
         if role == 'user':
-            self.chat_text.insert("end", f"You: {content}\n\n")
+            self.chat_text.insert("end", f"You: {content}\n\n", "user_tag")
         else:
-            self.chat_text.insert("end", f"AI: {content}\n\n")
+            # Insert AI message
+            ai_message = f"AI: {content}\n"
+            self.chat_text.insert("end", ai_message, "ai_tag")
+            
+            # Add think content button if available
+            if think_content and think_content.strip():
+                think_button_text = " 💭 Thoughts "
+                self.chat_text.insert("end", think_button_text, "think_button")
+                
+                # Create a unique tag for this specific think button
+                unique_tag = f"think_button_{id(think_content)}"
+                self.chat_text.tag_add(unique_tag, "end-2c linestart", "end-1c")
+                self.chat_text.tag_config(unique_tag, 
+                    foreground="white", 
+                    background="gray",
+                    borderwidth=1,
+                    relief="raised"
+                )
+                
+                # Bind the unique tag to the event
+                self.chat_text.tag_bind(unique_tag, "<Button-1>", 
+                    lambda event, tc=think_content: self._show_think_content(tc)
+                )
+                self.chat_text.tag_bind(unique_tag, "<Enter>", 
+                    lambda event: self.chat_text.config(cursor="hand2")
+                )
+                self.chat_text.tag_bind(unique_tag, "<Leave>", 
+                    lambda event: self.chat_text.config(cursor="")
+                )
+            
+            # Add newline for spacing
+            self.chat_text.insert("end", "\n\n")
         
         self.chat_text.configure(state="disabled")
         self.chat_text.see("end")
+
+    def _show_think_content(self, think_content):
+        """
+        Show think content in a popup window
+        
+        Args:
+            think_content (str): Internal thought content
+        """
+        # Create a new window for think content
+        think_window = ctk.CTkToplevel(self.root)
+        think_window.title("Internal Thoughts")
+        think_window.geometry("500x300")
+        
+        # Text widget to display think content
+        think_text = ctk.CTkTextbox(
+            think_window, 
+            state="normal", 
+            wrap="word"
+        )
+        think_text.pack(padx=10, pady=10, fill="both", expand=True)
+        
+        # Insert think content
+        think_text.insert("1.0", think_content)
+        think_text.configure(state="disabled")
 
     def process_responses(self):
         """Process responses from the model in a separate thread"""
         while True:
             try:
-                # Unpack the response with the completion flag
-                model, response, is_complete = self.response_queue.get()
+                # Unpack the response with think content
+                model, response, think_content, is_complete = self.response_queue.get()
                 
                 # Add AI response to current chat
                 self.current_chat = self.chat_manager.add_message(
@@ -252,7 +501,7 @@ class OllamaChatApp:
                 self.chat_manager.save_chat(self.current_chat)
                 
                 # Display response in main thread
-                self.root.after(0, self.display_message, 'assistant', response)
+                self.root.after(0, self.display_message, 'assistant', response, think_content)
                 
                 self.response_queue.task_done()
             except Exception as e:
@@ -262,8 +511,8 @@ class OllamaChatApp:
         """Check response queue periodically"""
         try:
             # Non-blocking check of the queue
-            model, response, is_complete = self.response_queue.get_nowait()
-            self.root.after(0, self.display_message, 'assistant', response)
+            model, response, think_content, is_complete = self.response_queue.get_nowait()
+            self.root.after(0, self.display_message, 'assistant', response, think_content)
         except queue.Empty:
             pass
         

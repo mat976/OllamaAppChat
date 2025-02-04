@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime
+import shutil
 
 class ChatManager:
     def __init__(self, chats_dir='chats'):
@@ -13,6 +14,10 @@ class ChatManager:
         """
         self.chats_dir = os.path.abspath(chats_dir)
         os.makedirs(self.chats_dir, exist_ok=True)
+        
+        # Create an archive directory for deleted chats
+        self.archive_dir = os.path.join(self.chats_dir, 'archive')
+        os.makedirs(self.archive_dir, exist_ok=True)
 
     def create_new_chat(self, model):
         """
@@ -29,7 +34,8 @@ class ChatManager:
             'id': chat_id,
             'model': model,
             'created_at': datetime.now().isoformat(),
-            'messages': []
+            'messages': [],
+            'title': f'New {model} Chat'
         }
         
         # Save the new chat
@@ -56,6 +62,10 @@ class ChatManager:
         }
         
         chat['messages'].append(message)
+        
+        # Update chat title for the first user message
+        if role == 'user' and len(chat['messages']) <= 2:
+            chat['title'] = content[:30] + '...' if len(content) > 30 else content
         
         # Save the updated chat
         self.save_chat(chat)
@@ -101,7 +111,7 @@ class ChatManager:
         """
         chats = []
         for filename in os.listdir(self.chats_dir):
-            if filename.endswith('.json'):
+            if filename.endswith('.json') and 'archive' not in filename:
                 chat_path = os.path.join(self.chats_dir, filename)
                 with open(chat_path, 'r', encoding='utf-8') as f:
                     chats.append(json.load(f))
@@ -117,6 +127,42 @@ class ChatManager:
             chat_id (str): Unique identifier for the chat
         """
         chat_file = os.path.join(self.chats_dir, f"{chat_id}.json")
+        archive_file = os.path.join(self.archive_dir, f"{chat_id}_deleted_{datetime.now().isoformat().replace(':', '-')}.json")
         
         if os.path.exists(chat_file):
-            os.remove(chat_file)
+            # Move to archive instead of permanent deletion
+            shutil.move(chat_file, archive_file)
+
+    def clear_all_chats(self):
+        """
+        Clear all chat sessions
+        """
+        for filename in os.listdir(self.chats_dir):
+            if filename.endswith('.json') and filename != 'archive':
+                file_path = os.path.join(self.chats_dir, filename)
+                archive_file = os.path.join(
+                    self.archive_dir, 
+                    f"deleted_{filename.replace('.json', '')}_{datetime.now().isoformat().replace(':', '-')}.json"
+                )
+                shutil.move(file_path, archive_file)
+
+    def restore_chat(self, archived_chat_filename):
+        """
+        Restore a chat from the archive
+        
+        Args:
+            archived_chat_filename (str): Filename of the archived chat
+        
+        Returns:
+            dict: Restored chat session
+        """
+        archive_file = os.path.join(self.archive_dir, archived_chat_filename)
+        restored_file = os.path.join(self.chats_dir, archived_chat_filename.replace('_deleted_', '_restored_'))
+        
+        if os.path.exists(archive_file):
+            shutil.copy(archive_file, restored_file)
+            
+            with open(restored_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        
+        return None

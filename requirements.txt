@@ -1,4 +1,6 @@
-ollama==0.1.7
+ollama==0.1.9
 customtkinter==5.2.1
 CTkMessagebox==2.5
 uuid==1.30
+python-dotenv==1.0.0
+logging==0.5.1.2
