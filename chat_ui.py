@@ -16,7 +16,7 @@ class OllamaChatApp:
         # Main window setup
         self.root = root
         self.root.title("🤖 Ollama AI Chat")
-        self.root.geometry("1400x800")
+        self.root.geometry("1200x800")  # Slightly reduced width
         self.root.minsize(1000, 600)
 
         # Chat management
@@ -30,27 +30,27 @@ class OllamaChatApp:
 
         # Main frame
         self.main_frame = ctk.CTkFrame(self.root, corner_radius=10)
-        self.main_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.main_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
         self.main_frame.grid_columnconfigure(0, weight=1)
         self.main_frame.grid_columnconfigure(1, weight=4)
         self.main_frame.grid_rowconfigure(0, weight=1)
 
         # Sidebar for chat list
-        self.sidebar_frame = ctk.CTkFrame(self.main_frame, width=250, corner_radius=10)
-        self.sidebar_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.sidebar_frame = ctk.CTkFrame(self.main_frame, width=200, corner_radius=10)
+        self.sidebar_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(2, weight=1)
 
         # Sidebar title
         self.sidebar_title = ctk.CTkLabel(
             self.sidebar_frame, 
-            text="🤖 Ollama Chats", 
-            font=ctk.CTkFont(size=20, weight="bold")
+            text="🤖 Chats", 
+            font=ctk.CTkFont(size=16, weight="bold")
         )
-        self.sidebar_title.grid(row=0, column=0, padx=20, pady=(20, 10))
+        self.sidebar_title.grid(row=0, column=0, padx=10, pady=(10, 5))
 
         # Chat Management Buttons Frame
         self.chat_buttons_frame = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
-        self.chat_buttons_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.chat_buttons_frame.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
         self.chat_buttons_frame.grid_columnconfigure((0,1), weight=1)
 
         # New Chat Button
@@ -59,103 +59,111 @@ class OllamaChatApp:
             text="+ New", 
             command=self.create_new_chat,
             corner_radius=20,
-            width=100
+            width=80
         )
-        self.new_chat_button.grid(row=0, column=0, padx=5, pady=5)
+        self.new_chat_button.grid(row=0, column=0, padx=2, pady=2)
 
         # Clear Chats Button
         self.clear_chats_button = ctk.CTkButton(
             self.chat_buttons_frame, 
-            text="🗑️ Clear", 
+            text="🗑️", 
             command=self.clear_all_chats,
             corner_radius=20,
-            width=100,
+            width=50,
             fg_color="red",
             hover_color="darkred"
         )
-        self.clear_chats_button.grid(row=0, column=1, padx=5, pady=5)
+        self.clear_chats_button.grid(row=0, column=1, padx=2, pady=2)
 
         # Chat List
         self.chat_list = ctk.CTkScrollableFrame(
             self.sidebar_frame, 
-            corner_radius=10
+            corner_radius=10,
+            height=500  # Fixed height to ensure visibility
         )
-        self.chat_list.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
+        self.chat_list.grid(row=2, column=0, padx=5, pady=5, sticky="nsew")
 
         # Chat Area
         self.chat_frame = ctk.CTkFrame(self.main_frame, corner_radius=10)
-        self.chat_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        self.chat_frame.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
         self.chat_frame.grid_rowconfigure(0, weight=1)
         self.chat_frame.grid_columnconfigure(0, weight=1)
 
-        # Chat Text Area
-        self.chat_text = ctk.CTkTextbox(
-            self.chat_frame, 
-            state="disabled", 
-            font=ctk.CTkFont(size=14),
-            corner_radius=10,
-            wrap="word"
+        # Chat Text Area with vertical scrollbar
+        self.chat_text_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
+        self.chat_text_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        self.chat_text_frame.grid_columnconfigure(0, weight=1)
+        self.chat_text_frame.grid_rowconfigure(0, weight=1)
+
+        # Scrollbar
+        self.chat_text_scrollbar = ctk.CTkScrollbar(
+            self.chat_text_frame, 
+            orientation="vertical"
         )
-        self.chat_text.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.chat_text_scrollbar.grid(row=0, column=1, sticky="ns")
+
+        # Chat Text with scrollbar
+        self.chat_text = ctk.CTkTextbox(
+            self.chat_text_frame, 
+            state="disabled", 
+            wrap="word",
+            corner_radius=10,
+            yscrollcommand=self.chat_text_scrollbar.set
+        )
+        self.chat_text.grid(row=0, column=0, sticky="nsew")
+        
+        # Configure scrollbar
+        self.chat_text_scrollbar.configure(command=self.chat_text.yview)
 
         # Configure text tags for styling
         self.chat_text.tag_config("user_tag", foreground="light blue")
         self.chat_text.tag_config("ai_tag", foreground="light green")
-        self.chat_text.tag_config("think_button", 
-            foreground="white", 
-            background="gray",
-            borderwidth=1,
-            relief="raised"
-        )
-        
-        # Add hover effect for think button
-        self.chat_text.tag_bind("think_button", "<Enter>", 
-            lambda event: self.chat_text.config(cursor="hand2")
-        )
-        self.chat_text.tag_bind("think_button", "<Leave>", 
-            lambda event: self.chat_text.config(cursor="")
-        )
 
-        # Model Selection
+        # Ensure scroll to bottom
+        def scroll_to_bottom(event=None):
+            self.chat_text.see("end")
+        
+        self.root.after(100, scroll_to_bottom)
+
+        # Model Selection Frame
         self.model_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
-        self.model_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.model_frame.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
         self.model_frame.grid_columnconfigure(0, weight=1)
 
+        # Model Selection Combo Box
         self.model_combo = ctk.CTkComboBox(
             self.model_frame, 
             state="readonly", 
-            width=300
+            width=250  # Reduced width
         )
-        self.model_combo.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="ew")
+        self.model_combo.grid(row=0, column=0, padx=(0, 5), pady=5, sticky="ew")
+
+        # Populate models
+        self.populate_models()
 
         # Message Input Frame
         self.input_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
-        self.input_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+        self.input_frame.grid(row=2, column=0, padx=5, pady=5, sticky="ew")
         self.input_frame.grid_columnconfigure(0, weight=1)
 
         # Message Entry
         self.message_entry = ctk.CTkEntry(
             self.input_frame, 
-            placeholder_text="Type your message...", 
-            height=40,
-            corner_radius=20
+            placeholder_text="Type your message...",
+            width=500  # Reduced width
         )
-        self.message_entry.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="ew")
-        self.message_entry.bind('<Return>', self.send_message)
+        self.message_entry.grid(row=0, column=0, padx=(0, 5), pady=5, sticky="ew")
+        self.message_entry.bind("<Return>", self.send_message)
 
         # Send Button
         self.send_button = ctk.CTkButton(
             self.input_frame, 
             text="Send", 
             command=self.send_message,
-            width=100,
-            corner_radius=20
+            width=80  # Reduced width
         )
-        self.send_button.grid(row=0, column=1, padx=10, pady=10)
+        self.send_button.grid(row=0, column=1, padx=5, pady=5)
 
-        # Populate models
-        self.populate_models()
-        
         # Load existing chats
         self.load_existing_chats()
 
@@ -167,17 +175,26 @@ class OllamaChatApp:
         self.root.after(100, self.check_response_queue)
 
     def populate_models(self):
-        """Populate model dropdown with available Ollama models"""
-        models = OllamaModelHandler.get_available_models()
-        if models:
-            self.model_combo.configure(values=models)
-            self.model_combo.set(models[0])
-        else:
-            CTkMessagebox(
-                title="Error", 
-                message="No Ollama models found. Please install models first.", 
-                icon="cancel"
-            )
+        """
+        Populate the model selection combo box with available models
+        """
+        try:
+            # Get available models from OllamaModelHandler
+            models = OllamaModelHandler.get_available_models()
+            
+            if models:
+                # Set the first model as default
+                self.model_combo.configure(values=models)
+                self.model_combo.set(models[0])
+            else:
+                # No models available
+                self.model_combo.configure(values=["No models found"])
+                self.model_combo.set("No models found")
+        except Exception as e:
+            # Handle any errors in model retrieval
+            print(f"Error populating models: {e}")
+            self.model_combo.configure(values=["Error loading models"])
+            self.model_combo.set("Error loading models")
 
     def create_new_chat(self):
         """Create a new chat session"""
@@ -216,34 +233,51 @@ class OllamaChatApp:
 
     def load_existing_chats(self):
         """Load existing chat sessions from file"""
+        # Clear any existing chat buttons
+        for widget in self.chat_list.winfo_children():
+            widget.destroy()
+
+        # Get list of chats
         chats = self.chat_manager.list_chats()
-        for chat in chats:
-            chat_button = ctk.CTkButton(
+        
+        if not chats:
+            # Show a placeholder if no chats exist
+            no_chats_label = ctk.CTkLabel(
                 self.chat_list, 
+                text="No chats yet. Start a new chat!",
+                text_color="gray"
+            )
+            no_chats_label.pack(pady=10)
+            return
+
+        # Create buttons for each chat
+        for chat in chats:
+            # Create a frame to hold chat button and delete button
+            chat_item_frame = ctk.CTkFrame(self.chat_list, fg_color="transparent")
+            chat_item_frame.pack(pady=2, fill="x")
+
+            # Chat button
+            chat_button = ctk.CTkButton(
+                chat_item_frame, 
                 text=chat.get('title', f"Chat {chat['id'][:8]}"),
                 command=lambda c=chat: self.load_chat(c),
-                corner_radius=10,
-                anchor="w"
+                anchor="w",
+                width=150,
+                fg_color="gray30",
+                hover_color="gray40"
             )
-            # Add a custom attribute to help with deletion
-            chat_button.chat_id = chat['id']
-            
-            # Add a delete button for each chat
+            chat_button.pack(side="left", expand=True, fill="x", padx=(0,5))
+
+            # Delete button
             delete_button = ctk.CTkButton(
-                self.chat_list, 
+                chat_item_frame, 
                 text="🗑️", 
-                width=30,
-                fg_color="red", 
-                hover_color="darkred",
+                width=40,
+                fg_color="red3", 
+                hover_color="red4",
                 command=lambda c=chat: self.delete_specific_chat(c)
             )
-            
-            # Create a frame to hold the chat and delete buttons
-            button_frame = ctk.CTkFrame(self.chat_list, fg_color="transparent")
-            button_frame.pack(pady=5, fill='x')
-            
-            chat_button.pack(side='left', expand=True, fill='x', padx=(0,5))
-            delete_button.pack(side='right', padx=(0,5))
+            delete_button.pack(side="right", padx=(5,0))
 
     def clear_all_chats(self):
         """
@@ -421,9 +455,12 @@ class OllamaChatApp:
         """
         self.chat_text.configure(state="normal")
         
+        # Always insert at the end
+        self.chat_text.insert("end", "\n")
+        
         # Determine formatting based on role
         if role == 'user':
-            self.chat_text.insert("end", f"You: {content}\n\n", "user_tag")
+            self.chat_text.insert("end", f"You: {content}\n", "user_tag")
         else:
             # Insert AI message
             ai_message = f"AI: {content}\n"
@@ -431,35 +468,54 @@ class OllamaChatApp:
             
             # Add think content button if available
             if think_content and think_content.strip():
-                think_button_text = " 💭 Thoughts "
-                self.chat_text.insert("end", think_button_text, "think_button")
-                
                 # Create a unique tag for this specific think button
                 unique_tag = f"think_button_{id(think_content)}"
-                self.chat_text.tag_add(unique_tag, "end-2c linestart", "end-1c")
+                
+                # Insert think button text with unique tag
+                think_button_text = " 💭 Thoughts "
+                self.chat_text.insert("end", think_button_text, unique_tag)
+                
+                # Configure the unique tag
                 self.chat_text.tag_config(unique_tag, 
                     foreground="white", 
-                    background="gray",
-                    borderwidth=1,
-                    relief="raised"
+                    background="gray"
                 )
                 
-                # Bind the unique tag to the event
+                # Bind events using lambda with unique tag
                 self.chat_text.tag_bind(unique_tag, "<Button-1>", 
                     lambda event, tc=think_content: self._show_think_content(tc)
                 )
                 self.chat_text.tag_bind(unique_tag, "<Enter>", 
-                    lambda event: self.chat_text.config(cursor="hand2")
+                    lambda event, tag=unique_tag: self._on_think_button_enter(tag)
                 )
                 self.chat_text.tag_bind(unique_tag, "<Leave>", 
-                    lambda event: self.chat_text.config(cursor="")
+                    lambda event, tag=unique_tag: self._on_think_button_leave(tag)
                 )
-            
-            # Add newline for spacing
-            self.chat_text.insert("end", "\n\n")
         
+        # Always add an extra newline and scroll to bottom
+        self.chat_text.insert("end", "\n")
         self.chat_text.configure(state="disabled")
         self.chat_text.see("end")
+
+    def _on_think_button_enter(self, tag):
+        """
+        Handle mouse enter event for think button
+        
+        Args:
+            tag (str): Unique tag for the think button
+        """
+        self.chat_text.configure(cursor="hand2")
+        self.chat_text.tag_config(tag, background="darkgray")
+
+    def _on_think_button_leave(self, tag):
+        """
+        Handle mouse leave event for think button
+        
+        Args:
+            tag (str): Unique tag for the think button
+        """
+        self.chat_text.configure(cursor="")
+        self.chat_text.tag_config(tag, background="gray")
 
     def _show_think_content(self, think_content):
         """
@@ -518,6 +574,14 @@ class OllamaChatApp:
         
         # Schedule next check
         self.root.after(100, self.check_response_queue)
+
+    def clear_chat(self):
+        """
+        Clear the current chat text area
+        """
+        self.chat_text.configure(state="normal")
+        self.chat_text.delete("1.0", "end")
+        self.chat_text.configure(state="disabled")
 
 # Optional: Main execution block
 if __name__ == "__main__":
