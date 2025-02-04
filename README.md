@@ -33,3 +33,12 @@ python ollama_chat_app.py
 - Send and receive messages
 - Clear chat history
 - Threaded chat to prevent UI freezing
+- New feature: Support for multiple chat windows
+- New feature: Option to save chat logs to file
+
+## Usage
+
+- Start the application and select an Ollama model
+- Type a message and press send to receive a response
+- Use the "Clear Chat" button to clear the chat history
+- Use the "Save Chat Log" button to save the chat history to a file
