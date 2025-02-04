@@ -1,2 +1,4 @@
-PyQt6==6.6.1
 ollama==0.1.7
+customtkinter==5.2.1
+CTkMessagebox==2.5
+uuid==1.30

@@ -30,3 +30,4 @@ build/
 
 # Ollama chat app specific
 .ollama_chat_app/
+/__pycache__

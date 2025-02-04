@@ -1,190 +1,277 @@
-import ollama
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
-                             QTextEdit, QLineEdit, QPushButton, QComboBox, QWidget, 
-                             QLabel, QStackedWidget, QSplitter)
-from PyQt6.QtCore import Qt
+import os
+import customtkinter as ctk
+from CTkMessagebox import CTkMessagebox
+import queue
+import threading
 
-from models import ModelChatThread
+from chat_manager import ChatManager
+from models import OllamaModelHandler, ModelChatThread
 
-class OllamaChatApp(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Ollama Chat")
-        self.setGeometry(100, 100, 1000, 700)
+class OllamaChatApp:
+    def __init__(self, root):
+        # Configure appearance
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
 
-        # Central widget and main layout
-        central_widget = QWidget()
-        main_layout = QVBoxLayout()
-        central_widget.setLayout(main_layout)
-        self.setCentralWidget(central_widget)
+        # Main window setup
+        self.root = root
+        self.root.title("🤖 Ollama AI Chat")
+        self.root.geometry("1400x800")
+        self.root.minsize(1000, 600)
 
-        # Mode toggle button
-        self.mode_toggle_button = QPushButton("Switch to Dual AI Mode")
-        self.mode_toggle_button.clicked.connect(self.toggle_mode)
-        main_layout.addWidget(self.mode_toggle_button)
+        # Chat management
+        self.chat_manager = ChatManager()
+        self.current_chat = None
+        self.response_queue = queue.Queue()
 
-        # Stacked widget to hold different modes
-        self.mode_stack = QStackedWidget()
-        main_layout.addWidget(self.mode_stack)
+        # Main grid layout
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight=1)
 
-        # Create Solo Mode Widget
-        self.solo_mode_widget = QWidget()
-        solo_mode_layout = QVBoxLayout()
-        self.solo_mode_widget.setLayout(solo_mode_layout)
+        # Main frame
+        self.main_frame = ctk.CTkFrame(self.root, corner_radius=10)
+        self.main_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.main_frame.grid_columnconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(1, weight=4)
+        self.main_frame.grid_rowconfigure(0, weight=1)
 
-        # Solo Mode Model Selection
-        solo_model_layout = QHBoxLayout()
-        self.solo_model_combo = QComboBox()
-        solo_model_layout.addWidget(QLabel("Model:"))
-        solo_model_layout.addWidget(self.solo_model_combo)
-        solo_mode_layout.addLayout(solo_model_layout)
+        # Sidebar for chat list
+        self.sidebar_frame = ctk.CTkFrame(self.main_frame, width=250, corner_radius=10)
+        self.sidebar_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.sidebar_frame.grid_rowconfigure(2, weight=1)
 
-        # Solo Mode Chat History
-        self.solo_chat_history = QTextEdit()
-        self.solo_chat_history.setReadOnly(True)
-        solo_mode_layout.addWidget(self.solo_chat_history)
+        # Sidebar title
+        self.sidebar_title = ctk.CTkLabel(
+            self.sidebar_frame, 
+            text="🤖 Ollama Chats", 
+            font=ctk.CTkFont(size=20, weight="bold")
+        )
+        self.sidebar_title.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        # Solo Mode Input Area
-        solo_input_layout = QHBoxLayout()
-        self.solo_message_input = QLineEdit()
-        self.solo_message_input.setPlaceholderText("Enter your message...")
-        self.solo_message_input.returnPressed.connect(lambda: self.send_message(mode='solo'))
-        solo_input_layout.addWidget(self.solo_message_input)
+        # New Chat Button
+        self.new_chat_button = ctk.CTkButton(
+            self.sidebar_frame, 
+            text="+ New Chat", 
+            command=self.create_new_chat,
+            corner_radius=20
+        )
+        self.new_chat_button.grid(row=1, column=0, padx=20, pady=10)
 
-        self.solo_send_button = QPushButton("Send")
-        self.solo_send_button.clicked.connect(lambda: self.send_message(mode='solo'))
-        solo_input_layout.addWidget(self.solo_send_button)
-        solo_mode_layout.addLayout(solo_input_layout)
+        # Chat List
+        self.chat_list = ctk.CTkScrollableFrame(
+            self.sidebar_frame, 
+            corner_radius=10
+        )
+        self.chat_list.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
 
-        # Create Dual Mode Widget
-        self.dual_mode_widget = QWidget()
-        dual_mode_layout = QVBoxLayout()
-        self.dual_mode_widget.setLayout(dual_mode_layout)
+        # Chat Area
+        self.chat_frame = ctk.CTkFrame(self.main_frame, corner_radius=10)
+        self.chat_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
+        self.chat_frame.grid_rowconfigure(0, weight=1)
+        self.chat_frame.grid_columnconfigure(0, weight=1)
 
-        # Dual Mode Model Selection
-        dual_model_layout = QHBoxLayout()
-        self.dual_model1_combo = QComboBox()
-        self.dual_model2_combo = QComboBox()
-        dual_model_layout.addWidget(QLabel("Model 1:"))
-        dual_model_layout.addWidget(self.dual_model1_combo)
-        dual_model_layout.addWidget(QLabel("Model 2:"))
-        dual_model_layout.addWidget(self.dual_model2_combo)
-        dual_mode_layout.addLayout(dual_model_layout)
+        # Chat Text Area
+        self.chat_text = ctk.CTkTextbox(
+            self.chat_frame, 
+            state="disabled", 
+            font=ctk.CTkFont(size=14),
+            corner_radius=10
+        )
+        self.chat_text.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
-        # Dual Mode Chat Splitter
-        self.dual_chat_splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.dual_chat_history1 = QTextEdit()
-        self.dual_chat_history2 = QTextEdit()
-        self.dual_chat_history1.setReadOnly(True)
-        self.dual_chat_history2.setReadOnly(True)
-        self.dual_chat_splitter.addWidget(self.dual_chat_history1)
-        self.dual_chat_splitter.addWidget(self.dual_chat_history2)
-        dual_mode_layout.addWidget(self.dual_chat_splitter)
+        # Model Selection
+        self.model_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
+        self.model_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.model_frame.grid_columnconfigure(0, weight=1)
 
-        # Dual Mode Input Area
-        dual_input_layout = QHBoxLayout()
-        self.dual_message_input = QLineEdit()
-        self.dual_message_input.setPlaceholderText("Enter your message...")
-        self.dual_message_input.returnPressed.connect(lambda: self.send_message(mode='dual'))
-        dual_input_layout.addWidget(self.dual_message_input)
+        self.model_combo = ctk.CTkComboBox(
+            self.model_frame, 
+            state="readonly", 
+            width=300
+        )
+        self.model_combo.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="ew")
 
-        self.dual_send_button = QPushButton("Compare Responses")
-        self.dual_send_button.clicked.connect(lambda: self.send_message(mode='dual'))
-        dual_input_layout.addWidget(self.dual_send_button)
-        dual_mode_layout.addLayout(dual_input_layout)
+        # Message Input Frame
+        self.input_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
+        self.input_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+        self.input_frame.grid_columnconfigure(0, weight=1)
 
-        # Add widgets to stacked widget
-        self.mode_stack.addWidget(self.solo_mode_widget)
-        self.mode_stack.addWidget(self.dual_mode_widget)
+        # Message Entry
+        self.message_entry = ctk.CTkEntry(
+            self.input_frame, 
+            placeholder_text="Type your message...", 
+            height=40,
+            corner_radius=20
+        )
+        self.message_entry.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="ew")
+        self.message_entry.bind('<Return>', self.send_message)
 
-        # Load models
-        self.load_models()
+        # Send Button
+        self.send_button = ctk.CTkButton(
+            self.input_frame, 
+            text="Send", 
+            command=self.send_message,
+            width=100,
+            corner_radius=20
+        )
+        self.send_button.grid(row=0, column=1, padx=10, pady=10)
 
-        # Start in solo mode
-        self.current_mode = 'solo'
-        self.mode_stack.setCurrentWidget(self.solo_mode_widget)
+        # Populate models
+        self.populate_models()
+        
+        # Load existing chats
+        self.load_existing_chats()
 
-    def load_models(self):
+        # Start response processing thread
+        self.response_thread = threading.Thread(target=self.process_responses, daemon=True)
+        self.response_thread.start()
+
+        # Schedule periodic queue checking
+        self.root.after(100, self.check_response_queue)
+
+    def populate_models(self):
+        """Populate model dropdown with available Ollama models"""
+        models = OllamaModelHandler.get_available_models()
+        if models:
+            self.model_combo.configure(values=models)
+            self.model_combo.set(models[0])
+        else:
+            CTkMessagebox(
+                title="Error", 
+                message="No Ollama models found. Please install models first.", 
+                icon="cancel"
+            )
+
+    def create_new_chat(self):
+        """Create a new chat session"""
+        model = self.model_combo.get()
+        new_chat = self.chat_manager.create_new_chat(model)
+        
+        # Create a button for the new chat
+        chat_button = ctk.CTkButton(
+            self.chat_list, 
+            text=f"Chat {new_chat['id'][:8]}",
+            command=lambda chat=new_chat: self.load_chat(chat),
+            corner_radius=10
+        )
+        chat_button.pack(pady=5, fill='x')
+
+        # Load the new chat
+        self.load_chat(new_chat)
+
+    def load_chat(self, chat):
+        """Load an existing chat session"""
+        self.current_chat = chat
+        
+        # Clear previous chat text
+        self.chat_text.configure(state="normal")
+        self.chat_text.delete("1.0", "end")
+        
+        # Display chat history
+        for msg in chat.get('messages', []):
+            role = msg['role']
+            content = msg['content']
+            self.display_message(role, content)
+        
+        # Disable text box
+        self.chat_text.configure(state="disabled")
+        self.chat_text.see("end")
+
+    def load_existing_chats(self):
+        """Load existing chat sessions from file"""
+        chats = self.chat_manager.list_chats()
+        for chat in chats:
+            chat_button = ctk.CTkButton(
+                self.chat_list, 
+                text=f"Chat {chat['id'][:8]}",
+                command=lambda c=chat: self.load_chat(c),
+                corner_radius=10
+            )
+            chat_button.pack(pady=5, fill='x')
+
+    def send_message(self, event=None):
+        """Send a message in the current chat"""
+        if not self.current_chat:
+            CTkMessagebox(
+                title="Error", 
+                message="Please create a new chat first.", 
+                icon="cancel"
+            )
+            return
+
+        message = self.message_entry.get().strip()
+        if not message:
+            return
+
+        # Clear input
+        self.message_entry.delete(0, 'end')
+
+        # Add user message to chat
+        self.current_chat = self.chat_manager.add_message(
+            self.current_chat, 'user', message
+        )
+        self.display_message('user', message)
+
+        # Prepare messages for model
+        messages = self.current_chat['messages']
+
+        # Start chat thread
+        thread = ModelChatThread(
+            self.current_chat['model'], 
+            messages, 
+            self.response_queue
+        )
+        thread.start()
+
+    def display_message(self, role, content):
+        """Display a message in the chat text area"""
+        self.chat_text.configure(state="normal")
+        
+        # Determine formatting based on role
+        if role == 'user':
+            self.chat_text.insert("end", f"You: {content}\n\n")
+        else:
+            self.chat_text.insert("end", f"AI: {content}\n\n")
+        
+        self.chat_text.configure(state="disabled")
+        self.chat_text.see("end")
+
+    def process_responses(self):
+        """Process responses from the model in a separate thread"""
+        while True:
+            try:
+                # Unpack the response with the completion flag
+                model, response, is_complete = self.response_queue.get()
+                
+                # Add AI response to current chat
+                self.current_chat = self.chat_manager.add_message(
+                    self.current_chat, 'assistant', response
+                )
+                
+                # Save the chat
+                self.chat_manager.save_chat(self.current_chat)
+                
+                # Display response in main thread
+                self.root.after(0, self.display_message, 'assistant', response)
+                
+                self.response_queue.task_done()
+            except Exception as e:
+                print(f"Error processing response: {e}")
+
+    def check_response_queue(self):
+        """Check response queue periodically"""
         try:
-            models = ollama.list()
-            available_models = [model['name'] for model in models['models']]
-            
-            # Populate solo mode model combo
-            self.solo_model_combo.clear()
-            self.solo_model_combo.addItems(available_models)
-            
-            # Populate dual mode model combos
-            self.dual_model1_combo.clear()
-            self.dual_model2_combo.clear()
-            self.dual_model1_combo.addItems(available_models)
-            self.dual_model2_combo.addItems(available_models)
-        except Exception as e:
-            error_msg = f"Error loading models: {str(e)}"
-            if self.current_mode == 'solo':
-                self.solo_chat_history.append(error_msg)
-            else:
-                self.dual_chat_history1.append(error_msg)
-                self.dual_chat_history2.append(error_msg)
+            # Non-blocking check of the queue
+            model, response, is_complete = self.response_queue.get_nowait()
+            self.root.after(0, self.display_message, 'assistant', response)
+        except queue.Empty:
+            pass
+        
+        # Schedule next check
+        self.root.after(100, self.check_response_queue)
 
-    def toggle_mode(self):
-        if self.current_mode == 'solo':
-            # Switch to dual mode
-            self.mode_stack.setCurrentWidget(self.dual_mode_widget)
-            self.mode_toggle_button.setText("Switch to Solo AI Mode")
-            self.current_mode = 'dual'
-        else:
-            # Switch to solo mode
-            self.mode_stack.setCurrentWidget(self.solo_mode_widget)
-            self.mode_toggle_button.setText("Switch to Dual AI Mode")
-            self.current_mode = 'solo'
-
-    def send_message(self, mode):
-        if mode == 'solo':
-            message = self.solo_message_input.text().strip()
-            if not message:
-                return
-
-            model = self.solo_model_combo.currentText()
-            self.solo_chat_history.append(f"<b>You ({model}):</b> {message}")
-            self.solo_message_input.clear()
-
-            # Start chat thread
-            self.solo_chat_thread = ModelChatThread(model, message)
-            self.solo_chat_thread.response_signal.connect(self.display_solo_response)
-            self.solo_chat_thread.start()
-
-        elif mode == 'dual':
-            message = self.dual_message_input.text().strip()
-            if not message:
-                return
-
-            # Clear previous chat histories
-            self.dual_chat_history1.clear()
-            self.dual_chat_history2.clear()
-
-            # Get selected models
-            model1 = self.dual_model1_combo.currentText()
-            model2 = self.dual_model2_combo.currentText()
-
-            # Add user message to both chat histories
-            self.dual_chat_history1.append(f"<b>You ({model1}):</b> {message}")
-            self.dual_chat_history2.append(f"<b>You ({model2}):</b> {message}")
-            self.dual_message_input.clear()
-
-            # Start chat threads for both models
-            self.dual_chat_thread1 = ModelChatThread(model1, message)
-            self.dual_chat_thread1.response_signal.connect(self.display_dual_response)
-            self.dual_chat_thread1.start()
-
-            self.dual_chat_thread2 = ModelChatThread(model2, message)
-            self.dual_chat_thread2.response_signal.connect(self.display_dual_response)
-            self.dual_chat_thread2.start()
-
-    def display_solo_response(self, model, response):
-        self.solo_chat_history.append(f"<b>{model}:</b> {response}")
-
-    def display_dual_response(self, model, response):
-        if model == self.dual_model1_combo.currentText():
-            self.dual_chat_history1.append(f"<b>{model}:</b> {response}")
-        else:
-            self.dual_chat_history2.append(f"<b>{model}:</b> {response}")
+# Optional: Main execution block
+if __name__ == "__main__":
+    root = ctk.CTk()
+    app = OllamaChatApp(root)
+    root.mainloop()
