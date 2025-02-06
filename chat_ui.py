@@ -3,6 +3,11 @@ import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 import queue
 import threading
+import tkinter as tk
+import subprocess
+import sys
+import pyperclip
+import tkinter.filedialog as filedialog
 
 from chat_manager import ChatManager
 from models import OllamaModelHandler, ModelChatThread
@@ -24,6 +29,10 @@ class OllamaChatApp:
         self.current_chat = None
         self.response_queue = queue.Queue()
 
+        # Command Palette
+        self.command_palette = CommandPalette(self.root, self)
+        self.root.bind("<Control-p>", lambda event: self.command_palette.show_command_palette())
+
         # Main grid layout
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
@@ -36,7 +45,7 @@ class OllamaChatApp:
         self.main_frame.grid_rowconfigure(0, weight=1)
 
         # Sidebar for chat list
-        self.sidebar_frame = ctk.CTkFrame(self.main_frame, width=200, corner_radius=10)
+        self.sidebar_frame = ctk.CTkFrame(self.main_frame, width=250, corner_radius=10)
         self.sidebar_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(2, weight=1)
 
@@ -56,10 +65,10 @@ class OllamaChatApp:
         # New Chat Button
         self.new_chat_button = ctk.CTkButton(
             self.chat_buttons_frame, 
-            text="+ New", 
+            text="+ New Chat", 
             command=self.create_new_chat,
             corner_radius=20,
-            width=80
+            width=120
         )
         self.new_chat_button.grid(row=0, column=0, padx=2, pady=2)
 
@@ -75,11 +84,12 @@ class OllamaChatApp:
         )
         self.clear_chats_button.grid(row=0, column=1, padx=2, pady=2)
 
-        # Chat List
+        # Chat List (now with a fixed height and no scrollbar by default)
         self.chat_list = ctk.CTkScrollableFrame(
             self.sidebar_frame, 
             corner_radius=10,
-            height=500  # Fixed height to ensure visibility
+            height=500,  # Adjust as needed
+            width=230   # Slightly less than sidebar width
         )
         self.chat_list.grid(row=2, column=0, padx=5, pady=5, sticky="nsew")
 
@@ -145,6 +155,8 @@ class OllamaChatApp:
         self.input_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
         self.input_frame.grid(row=2, column=0, padx=5, pady=5, sticky="ew")
         self.input_frame.grid_columnconfigure(0, weight=1)
+        self.input_frame.grid_columnconfigure(1, weight=1)
+        self.input_frame.grid_columnconfigure(2, weight=1)
 
         # Message Entry
         self.message_entry = ctk.CTkEntry(
@@ -163,6 +175,15 @@ class OllamaChatApp:
             width=80  # Reduced width
         )
         self.send_button.grid(row=0, column=1, padx=5, pady=5)
+
+        # Command Palette Button
+        self.command_palette_button = ctk.CTkButton(
+            self.input_frame, 
+            text="⌘", 
+            command=self.command_palette.show_command_palette,
+            width=50
+        )
+        self.command_palette_button.grid(row=0, column=2, padx=5, pady=5)
 
         # Load existing chats
         self.load_existing_chats()
@@ -197,126 +218,134 @@ class OllamaChatApp:
             self.model_combo.set("Error loading models")
 
     def create_new_chat(self):
-        """Create a new chat session"""
+        """Create a new chat session with the currently selected model"""
         model = self.model_combo.get()
         new_chat = self.chat_manager.create_new_chat(model)
         
-        # Create a button for the new chat
-        chat_button = ctk.CTkButton(
-            self.chat_list, 
-            text=f"Chat {new_chat['id'][:8]}",
-            command=lambda chat=new_chat: self.load_chat(chat),
-            corner_radius=10
-        )
-        chat_button.pack(pady=5, fill='x')
-
-        # Load the new chat
-        self.load_chat(new_chat)
-
-    def load_chat(self, chat):
-        """Load an existing chat session"""
-        self.current_chat = chat
+        # Immediately load the new chat
+        self.current_chat = new_chat
         
-        # Clear previous chat text
+        # Refresh chat list
+        self.load_existing_chats()
+        
+        # Clear chat text area
         self.chat_text.configure(state="normal")
         self.chat_text.delete("1.0", "end")
-        
-        # Display chat history
-        for msg in chat.get('messages', []):
-            role = msg['role']
-            content = msg['content']
-            self.display_message(role, content)
-        
-        # Disable text box
         self.chat_text.configure(state="disabled")
-        self.chat_text.see("end")
 
     def load_existing_chats(self):
-        """Load existing chat sessions from file"""
-        # Clear any existing chat buttons
+        """
+        Load and display existing chats in a more user-friendly manner
+        """
+        # Clear existing chat list
         for widget in self.chat_list.winfo_children():
             widget.destroy()
-
-        # Get list of chats
+        
+        # Retrieve existing chats
         chats = self.chat_manager.list_chats()
         
         if not chats:
-            # Show a placeholder if no chats exist
+            # Show a placeholder when no chats exist
             no_chats_label = ctk.CTkLabel(
                 self.chat_list, 
                 text="No chats yet. Start a new chat!",
                 text_color="gray"
             )
-            no_chats_label.pack(pady=10)
+            no_chats_label.pack(pady=20)
             return
-
-        # Create buttons for each chat
+        
+        # Create a more compact and visually appealing chat list
         for chat in chats:
-            # Create a frame to hold chat button and delete button
-            chat_item_frame = ctk.CTkFrame(self.chat_list, fg_color="transparent")
-            chat_item_frame.pack(pady=2, fill="x")
-
-            # Chat button
-            chat_button = ctk.CTkButton(
-                chat_item_frame, 
-                text=chat.get('title', f"Chat {chat['id'][:8]}"),
-                command=lambda c=chat: self.load_chat(c),
+            chat_frame = ctk.CTkFrame(
+                self.chat_list, 
+                fg_color="transparent"
+            )
+            chat_frame.pack(fill="x", padx=5, pady=3)
+            
+            # Chat title with truncation
+            title = chat.get('title', 'Untitled Chat')
+            if len(title) > 25:
+                title = title[:25] + '...'
+            
+            chat_title = ctk.CTkLabel(
+                chat_frame, 
+                text=title, 
                 anchor="w",
-                width=150,
-                fg_color="gray30",
-                hover_color="gray40"
+                font=ctk.CTkFont(size=12)
             )
-            chat_button.pack(side="left", expand=True, fill="x", padx=(0,5))
+            chat_title.pack(side="left", expand=True, fill="x")
+            
+            # Model badge
+            model_badge = ctk.CTkLabel(
+                chat_frame, 
+                text=chat.get('model', 'Unknown'),
+                fg_color="gray",
+                text_color="white",
+                corner_radius=10,
+                width=60,
+                height=20,
+                font=ctk.CTkFont(size=10)
+            )
+            model_badge.pack(side="right", padx=5)
+            
+            # Make the entire frame clickable to select chat
+            chat_frame.bind("<Button-1>", lambda e, c=chat: self.load_selected_chat(c))
+            chat_title.bind("<Button-1>", lambda e, c=chat: self.load_selected_chat(c))
+            model_badge.bind("<Button-1>", lambda e, c=chat: self.load_selected_chat(c))
 
-            # Delete button
-            delete_button = ctk.CTkButton(
-                chat_item_frame, 
-                text="🗑️", 
-                width=40,
-                fg_color="red3", 
-                hover_color="red4",
-                command=lambda c=chat: self.delete_specific_chat(c)
-            )
-            delete_button.pack(side="right", padx=(5,0))
+    def load_selected_chat(self, chat):
+        """
+        Load a selected chat and display its messages
+        """
+        # Update current chat
+        self.current_chat = chat
+        
+        # Clear existing chat text
+        self.chat_text.configure(state="normal")
+        self.chat_text.delete("1.0", "end")
+        
+        # Display chat messages
+        for msg in chat.get('messages', []):
+            role = msg['role']
+            content = msg['content']
+            
+            # Determine tag based on role
+            tag = "user_tag" if role == "user" else "ai_tag"
+            
+            # Insert message with appropriate styling
+            self.chat_text.insert("end", f"{role.upper()}: ", tag)
+            self.chat_text.insert("end", f"{content}\n\n")
+        
+        self.chat_text.configure(state="disabled")
+        self.chat_text.see("end")
+        
+        # Update model selection to match chat's model
+        if chat.get('model') in self.model_combo['values']:
+            self.model_combo.set(chat['model'])
 
     def clear_all_chats(self):
-        """
-        Clear all chat sessions with confirmation
-        """
-        # Create a confirmation dialog
+        """Clear all existing chats with confirmation"""
+        # Use CustomTkinter's message box for a modern look
         confirm = CTkMessagebox(
-            title="Confirm Clear Chats", 
-            message="Are you sure you want to clear all chats? This cannot be undone.",
+            title="Confirm Clear", 
+            message="Are you sure you want to clear all chats?",
             icon="warning", 
-            option_1="Cancel", 
-            option_2="Clear"
+            option_1="Yes", 
+            option_2="No"
         )
         
-        # Wait for user response
-        response = confirm.get()
-        
-        if response == "Clear":
-            # Clear all chats
+        if confirm.get() == "Yes":
+            # Clear chats through chat manager
             self.chat_manager.clear_all_chats()
             
-            # Clear the chat list
-            for widget in self.chat_list.winfo_children():
-                widget.destroy()
-            
-            # Reset current chat
+            # Refresh chat list and current chat
+            self.load_existing_chats()
             self.current_chat = None
             
-            # Clear chat text
+            # Clear chat text area
             self.chat_text.configure(state="normal")
             self.chat_text.delete("1.0", "end")
             self.chat_text.configure(state="disabled")
-            
-            # Show confirmation
-            CTkMessagebox(
-                title="Chats Cleared", 
-                message="All chat sessions have been cleared.", 
-                icon="info"
-            )
 
     def delete_current_chat(self):
         """
@@ -582,6 +611,177 @@ class OllamaChatApp:
         self.chat_text.configure(state="normal")
         self.chat_text.delete("1.0", "end")
         self.chat_text.configure(state="disabled")
+
+class CommandPalette:
+    def __init__(self, master, app):
+        self.master = master
+        self.app = app
+        self.commands = {
+            "Code Commands": [
+                ("📋 Copy Last Response", self.copy_last_response),
+                ("🔍 Search Code", self.search_code),
+                ("📝 Open Text Editor", self.open_text_editor),
+                ("💻 Open Terminal", self.open_terminal),
+                ("🐍 Run Python Script", self.run_python_script),
+                ("📂 Open Project Folder", self.open_project_folder)
+            ],
+            "Chat Management": [
+                ("🗑️ Clear Current Chat", self.clear_current_chat),
+                ("💾 Export Chat", self.export_chat),
+                ("📊 Chat Statistics", self.show_chat_stats)
+            ]
+        }
+        
+        self.palette_window = None
+    
+    def show_command_palette(self):
+        if self.palette_window and self.palette_window.winfo_exists():
+            self.palette_window.lift()
+            return
+        
+        self.palette_window = ctk.CTkToplevel(self.master)
+        self.palette_window.title("🤖 Command Palette")
+        self.palette_window.geometry("500x600")
+        self.palette_window.resizable(False, False)
+        
+        # Title
+        title = ctk.CTkLabel(
+            self.palette_window, 
+            text="🤖 Command Palette", 
+            font=ctk.CTkFont(size=18, weight="bold")
+        )
+        title.pack(pady=10)
+        
+        # Scrollable frame for commands
+        command_frame = ctk.CTkScrollableFrame(
+            self.palette_window, 
+            width=480, 
+            height=500
+        )
+        command_frame.pack(padx=10, pady=10)
+        
+        # Add command groups
+        for group_name, commands in self.commands.items():
+            group_label = ctk.CTkLabel(
+                command_frame, 
+                text=group_name, 
+                font=ctk.CTkFont(size=14, weight="bold")
+            )
+            group_label.pack(pady=(10, 5), anchor="w")
+            
+            for cmd_name, cmd_func in commands:
+                cmd_button = ctk.CTkButton(
+                    command_frame, 
+                    text=cmd_name, 
+                    command=cmd_func,
+                    anchor="w",
+                    width=460
+                )
+                cmd_button.pack(pady=2, fill="x")
+    
+    def copy_last_response(self):
+        if self.app.current_chat and self.app.current_chat['messages']:
+            last_message = self.app.current_chat['messages'][-1]['content']
+            pyperclip.copy(last_message)
+            CTkMessagebox(title="Copied", message="Last AI response copied to clipboard!")
+    
+    def search_code(self):
+        # Open a dialog to search code in the project
+        search_window = ctk.CTkToplevel(self.master)
+        search_window.title("🔍 Code Search")
+        search_window.geometry("400x200")
+        
+        label = ctk.CTkLabel(search_window, text="Enter search term:")
+        label.pack(pady=10)
+        
+        search_entry = ctk.CTkEntry(search_window, width=300)
+        search_entry.pack(pady=10)
+        
+        def perform_search():
+            term = search_entry.get()
+            try:
+                # Use ripgrep for fast code search
+                result = subprocess.run(
+                    ['rg', '-n', term, '.'], 
+                    capture_output=True, 
+                    text=True, 
+                    cwd=os.path.dirname(os.path.abspath(__file__))
+                )
+                
+                # Show results in a new window
+                results_window = ctk.CTkToplevel(search_window)
+                results_window.title(f"Search Results for '{term}'")
+                results_window.geometry("600x400")
+                
+                results_text = ctk.CTkTextbox(results_window, wrap="word")
+                results_text.pack(expand=True, fill="both", padx=10, pady=10)
+                
+                results_text.insert("1.0", result.stdout or "No results found.")
+                results_text.configure(state="disabled")
+            except Exception as e:
+                CTkMessagebox(title="Error", message=f"Search failed: {str(e)}")
+        
+        search_button = ctk.CTkButton(search_window, text="Search", command=perform_search)
+        search_button.pack(pady=10)
+    
+    def open_text_editor(self):
+        subprocess.Popen(['notepad.exe'])
+    
+    def open_terminal(self):
+        subprocess.Popen(['cmd.exe'])
+    
+    def run_python_script(self):
+        # Open file dialog to select Python script
+        script_path = filedialog.askopenfilename(
+            title="Select Python Script", 
+            filetypes=[("Python Files", "*.py")]
+        )
+        
+        if script_path:
+            try:
+                subprocess.Popen([sys.executable, script_path])
+            except Exception as e:
+                CTkMessagebox(title="Error", message=f"Could not run script: {str(e)}")
+    
+    def open_project_folder(self):
+        project_path = os.path.dirname(os.path.abspath(__file__))
+        subprocess.Popen(f'explorer {project_path}')
+    
+    def clear_current_chat(self):
+        if self.app.current_chat:
+            self.app.current_chat['messages'] = []
+            self.app.chat_text.configure(state="normal")
+            self.app.chat_text.delete("1.0", "end")
+            self.app.chat_text.configure(state="disabled")
+            CTkMessagebox(title="Chat Cleared", message="Current chat has been cleared.")
+    
+    def export_chat(self):
+        if self.app.current_chat:
+            export_path = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text Files", "*.txt")]
+            )
+            
+            if export_path:
+                with open(export_path, 'w', encoding='utf-8') as f:
+                    for msg in self.app.current_chat['messages']:
+                        f.write(f"{msg['role'].upper()}: {msg['content']}\n\n")
+                CTkMessagebox(title="Export Successful", message=f"Chat exported to {export_path}")
+    
+    def show_chat_stats(self):
+        if self.app.current_chat:
+            messages = self.app.current_chat['messages']
+            user_messages = [m for m in messages if m['role'] == 'user']
+            ai_messages = [m for m in messages if m['role'] == 'assistant']
+            
+            stats_text = (
+                f"Total Messages: {len(messages)}\n"
+                f"User Messages: {len(user_messages)}\n"
+                f"AI Responses: {len(ai_messages)}\n"
+                f"Model: {self.app.current_chat.get('model', 'Unknown')}"
+            )
+            
+            CTkMessagebox(title="Chat Statistics", message=stats_text)
 
 # Optional: Main execution block
 if __name__ == "__main__":

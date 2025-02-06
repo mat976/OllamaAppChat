@@ -10,6 +10,7 @@ Cette application de chat utilise Ollama pour interagir avec différents modèle
 - Mode Dual : Comparaison des réponses de deux modèles AI différents
 - Sélection dynamique des modèles disponibles
 - Interface utilisateur intuitive avec PyQt6
+- Command Palette pour améliorer le flux de travail
 
 ### Prérequis
 - Python 3.8+
@@ -54,6 +55,33 @@ python main.py
 2. **Mode Dual** : 
    - Sélectionnez deux modèles
    - Comparez leurs réponses à la même question
+
+### Features
+
+### Command Palette
+
+The application now includes a powerful Command Palette to enhance your workflow:
+
+🚀 **Keyboard Shortcut**: Press `Ctrl+P` to open the Command Palette
+
+#### Available Commands
+
+**Code Commands**:
+- 📋 Copy Last Response: Quickly copy the most recent AI response
+- 🔍 Search Code: Search through project files using ripgrep
+- 📝 Open Text Editor: Launch Notepad
+- 💻 Open Terminal: Open command prompt
+- 🐍 Run Python Script: Select and run a Python script
+- 📂 Open Project Folder: Open the current project directory
+
+**Chat Management**:
+- 🗑️ Clear Current Chat: Remove all messages from the current chat
+- 💾 Export Chat: Save chat history to a text file
+- 📊 Chat Statistics: View message count and chat details
+
+### Command Palette Button
+
+A new `⌘` button has been added to the input frame for quick access to the Command Palette.
 
 ### Dépannage
 - Assurez-vous qu'Ollama est correctement installé
