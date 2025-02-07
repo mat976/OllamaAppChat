@@ -4,7 +4,6 @@
 
 ### Une application de chat conversationnel alimentée par l'IA locale
 
-![Logo de l'Application](docs/logo.png)
 
 ## 🚀 Fonctionnalités Principales
 
@@ -70,21 +69,3 @@ pip install -r requirements.txt
 # Lancer l'application
 python main.py
 ```
-
-## 🤝 Contributions
-
-Les contributions sont les bienvenues ! Veuillez consulter [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## 📜 Licence
-
-Ce projet est sous licence MIT. Voir [LICENSE](LICENSE) pour plus de détails.
-
-## 🙏 Remerciements
-
-- [Ollama](https://ollama.ai/) pour les modèles IA
-- [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) pour l'interface
-- Communautés Open Source Python et IA
-
----
-
-**Développé avec ❤️ par la Communauté Open Source**
