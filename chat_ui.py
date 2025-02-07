@@ -8,10 +8,101 @@ import subprocess
 import sys
 import pyperclip
 import tkinter.filedialog as filedialog
+import markdown
+import re
+import pygments
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import BBCodeFormatter
+import time
 
 from chat_manager import ChatManager
 from models import OllamaModelHandler, ModelChatThread
 from ui_components import ChatListItem, ConfirmationDialog, MessageBox
+
+class MarkdownParser:
+    @classmethod
+    def parse_markdown(cls, text):
+        """
+        Parse markdown text into segments with different types.
+        
+        Args:
+            text (str): Markdown-formatted text to parse
+        
+        Returns:
+            list: List of segments with type and content
+        """
+        segments = []
+        pattern = r'(\*\*.*?\*\*|\*.*?\*|`.*?`|```[\s\S]*?```)'
+        last_end = 0
+
+        for match in re.finditer(pattern, text):
+            # Add normal text before the match
+            if match.start() > last_end:
+                segments.append({
+                    'type': 'normal', 
+                    'content': text[last_end:match.start()]
+                })
+
+            # Process the matched markdown segment
+            matched_text = match.group(0)
+            if matched_text.startswith('**') and matched_text.endswith('**'):
+                # Bold text
+                segments.append({
+                    'type': 'bold', 
+                    'content': matched_text[2:-2]  # Remove **
+                })
+            elif matched_text.startswith('*') and matched_text.endswith('*'):
+                # Italic text
+                segments.append({
+                    'type': 'italic', 
+                    'content': matched_text[1:-1]  # Remove *
+                })
+            elif matched_text.startswith('`') and matched_text.endswith('`'):
+                # Inline code
+                segments.append({
+                    'type': 'code', 
+                    'content': matched_text[1:-1]  # Remove `
+                })
+            elif matched_text.startswith('```') and matched_text.endswith('```'):
+                # Code block
+                code_lines = matched_text[3:-3].strip().split('\n')
+                language = code_lines[0].strip() if code_lines else ''
+                code_content = '\n'.join(code_lines[1:]) if len(code_lines) > 1 else ''
+                segments.append({
+                    'type': 'code_block', 
+                    'content': code_content,
+                    'language': language
+                })
+
+            last_end = match.end()
+
+        # Add remaining text after last match
+        if last_end < len(text):
+            segments.append({
+                'type': 'normal', 
+                'content': text[last_end:]
+            })
+
+        return segments
+
+    @staticmethod
+    def highlight_code(code, language='python'):
+        """
+        Highlight code using Pygments
+        
+        Args:
+            code (str): Code to highlight
+            language (str, optional): Programming language. Defaults to 'python'.
+        
+        Returns:
+            str: Highlighted code
+        """
+        try:
+            lexer = get_lexer_by_name(language or 'python')
+            formatter = BBCodeFormatter()
+            return pygments.highlight(code, lexer, formatter)
+        except Exception:
+            return code  # Fallback to plain text if highlighting fails
 
 class OllamaChatApp:
     def __init__(self, root):
@@ -116,8 +207,7 @@ class OllamaChatApp:
             wrap="word",
             corner_radius=10,
             yscrollcommand=self.chat_text_scrollbar.set,
-            font=ctk.CTkFont(size=14),
-            text_color="white",
+            text_color="black",
             fg_color=("#f0f0f0", "#2c2c2c")
         )
         self.chat_text.grid(row=0, column=0, sticky="nsew")
@@ -157,7 +247,6 @@ class OllamaChatApp:
             placeholder_text="Type your message...",
             width=600,
             height=40,
-            font=ctk.CTkFont(size=14),
             corner_radius=20,
             border_width=2,
             border_color=("gray70", "gray30")
@@ -173,7 +262,6 @@ class OllamaChatApp:
             width=100,
             height=40,
             corner_radius=20,
-            font=ctk.CTkFont(size=14, weight="bold"),
             hover_color=("blue3", "blue4")
         )
         self.send_button.grid(row=0, column=1, padx=5, pady=5)
@@ -191,6 +279,10 @@ class OllamaChatApp:
         # Show welcome message if no chats exist
         if not self.chat_list.winfo_children():
             self.show_welcome_message()
+
+        # Add animation tracking
+        self.animation_running = False
+        self.animation_thread = None
 
     def load_existing_chats(self):
         """
@@ -402,11 +494,8 @@ class OllamaChatApp:
         self.message_entry.configure(state='disabled')
         self.send_button.configure(state='disabled')
 
-        # Expand chat text area to make room for typing indicator
-        self.chat_text_frame.grid_rowconfigure(0, weight=10)
-
-        # Show typing indicator
-        self.display_typing_indicator()
+        # Start thinking animation
+        self.start_thinking()
 
         # Add user message to chat
         self.current_chat = self.chat_manager.add_message(
@@ -425,42 +514,212 @@ class OllamaChatApp:
         )
         thread.start()
 
-    def display_typing_indicator(self):
-        """Display a typing indicator while waiting for AI response"""
-        self.chat_text.configure(state="normal")
+    def start_thinking(self):
+        """
+        Start the thinking animation in the chat.
+        Displays a spinning indicator while processing.
+        """
+        # Stop any existing animation
+        self.stop_thinking()
         
-        # Insert typing indicator with more visual appeal
-        typing_tag = "typing_indicator"
-        self.chat_text.tag_config(typing_tag, 
-            foreground="gray",
-            spacing1=10,  # Space above the text
-            spacing3=10   # Space below the text
+        # Set animation flag
+        self.animation_running = True
+        
+        # Display initial thinking message
+        self.display_message("assistant", "🤖 Thinking...", is_animation=True)
+        
+        # Start animation thread
+        self.animation_thread = threading.Thread(
+            target=self._animate_thinking, 
+            daemon=True
         )
+        self.animation_thread.start()
+
+    def _animate_thinking(self):
+        """
+        Internal method to animate the thinking indicator.
+        Uses a spinner animation with different characters.
+        """
+        spinners = ["|", "/", "-", "\\"]
+        spinner_index = 0
         
-        # Animated thinking indicator
-        thinking_dots = "🤖 Thinking"
-        self.chat_text.insert("end", f"\n{thinking_dots}", typing_tag)
+        while self.animation_running:
+            # Update thinking message with spinner
+            spinner = spinners[spinner_index % len(spinners)]
+            self.update_last_message(f"🤖 Thinking {spinner}")
+            
+            # Increment spinner and pause
+            spinner_index += 1
+            time.sleep(0.2)
+
+    def stop_thinking(self):
+        """
+        Stop the thinking animation and remove the thinking message.
+        """
+        # Stop animation thread
+        self.animation_running = False
+        if self.animation_thread and self.animation_thread.is_alive():
+            self.animation_thread.join(timeout=0.5)
         
-        # Animate dots
-        def animate_dots(count=0):
-            if hasattr(self, 'typing_job'):
-                # Remove previous dots
-                self.chat_text.configure(state="normal")
-                last_line = self.chat_text.get("end-2l", "end-1l")
-                if thinking_dots in last_line:
-                    # Update dots
-                    dots = "." * ((count % 3) + 1)
-                    self.chat_text.delete("end-2l", "end")
-                    self.chat_text.insert("end", f"\n{thinking_dots}{dots}", typing_tag)
-                    self.chat_text.configure(state="disabled")
-                    self.chat_text.see("end")
+        # Remove last message if it's an animation
+        self.delete_last_message(is_animation=True)
+
+    def update_last_message(self, new_content):
+        """
+        Update the last message in the chat text.
+        
+        Args:
+            new_content (str): New content to replace the last message
+        """
+        try:
+            self.chat_text.configure(state="normal")
+            
+            # Find the last line
+            last_line = self.chat_text.index("end-2l")
+            
+            # Delete the last line and insert new content
+            self.chat_text.delete(last_line, "end-1c")
+            self.chat_text.insert("end", f"{new_content}\n", "ai_tag")
+            
+            self.chat_text.configure(state="disabled")
+            self.chat_text.see("end")
+        except Exception as e:
+            print(f"Error updating last message: {e}")
+
+    def delete_last_message(self, is_animation=False):
+        """
+        Delete the last message from the chat text.
+        
+        Args:
+            is_animation (bool): Flag to indicate if deleting an animation message
+        """
+        try:
+            self.chat_text.configure(state="normal")
+            
+            # If deleting an animation message, look for "Thinking" in the last line
+            if is_animation:
+                last_line_content = self.chat_text.get("end-2l", "end-1c")
+                if "Thinking" in last_line_content:
+                    self.chat_text.delete("end-2l", "end-1c")
+            else:
+                # Delete the last line unconditionally
+                self.chat_text.delete("end-2l", "end-1c")
+            
+            self.chat_text.configure(state="disabled")
+            self.chat_text.see("end")
+        except Exception as e:
+            print(f"Error deleting last message: {e}")
+
+    def display_message(self, role, content, think_content=None, is_animation=False):
+        """
+        Affiche un message dans la zone de texte du chat avec un meilleur formatage.
+        
+        Args:
+            role (str): Rôle du message (user/assistant)
+            content (str): Contenu du message
+            think_content (str, optional): Contenu de la pensée interne
+            is_animation (bool, optional): Flag pour les messages d'animation
+        """
+        self.chat_text.configure(state="normal")
+
+        # Définir les styles basés sur le rôle
+        if role == 'user':
+            tag = "user_tag"
+            prefix = "👤 Vous: "
+            bg_color = "#DCF8C6"  # Vert clair pour l'utilisateur
+            fg_color = "#000000"
+        else:
+            tag = "ai_tag"
+            prefix = "🤖 AI: " if not is_animation else ""
+            bg_color = "#F0F0F0"  # Gris clair pour l'IA
+            fg_color = "#000000"
+
+        # Configurer le tag si ce n'est pas déjà fait
+        if not self.chat_text.tag_cget(tag, "background"):
+            self.chat_text.tag_config(tag, 
+                background=bg_color, 
+                foreground=fg_color
+            )
+
+        # Configurer les tags supplémentaires sans utiliser 'font'
+        self.chat_text.tag_config("bold", 
+            foreground="dark blue"
+        )
+        self.chat_text.tag_config("italic", 
+            foreground="dark green"
+        )
+        self.chat_text.tag_config("code", 
+            background="gray90", 
+            foreground="dark red"
+        )
+
+        # Insérer une nouvelle ligne avant le message si ce n'est pas le premier message
+        if self.chat_text.get("1.0", "end-1c").strip():
+            self.chat_text.insert("end", "\n")
+
+        # Insérer le message avec le préfixe
+        self.chat_text.insert("end", f"{prefix}", tag)
+
+        # Parser et insérer le contenu avec Markdown
+        segments = MarkdownParser.parse_markdown(content)
+        
+        for segment in segments:
+            if segment['type'] == 'normal':
+                self.chat_text.insert("end", segment['content'], tag)
+            elif segment['type'] == 'bold':
+                self.chat_text.insert("end", segment['content'], "bold")
+            elif segment['type'] == 'italic':
+                self.chat_text.insert("end", segment['content'], "italic")
+            elif segment['type'] == 'code':
+                self.chat_text.insert("end", segment['content'], "code")
+            elif segment['type'] == 'code_block':
+                # Highlight code block
+                highlighted_code = MarkdownParser.highlight_code(
+                    segment['content'], 
+                    segment['language']
+                )
                 
-                # Schedule next animation
-                self.typing_job = self.root.after(500, animate_dots, (count + 1) % 4)
-        
-        # Start dot animation
-        self.typing_job = self.root.after(500, animate_dots)
-        
+                # Insert code block with special formatting
+                self.chat_text.tag_config("code_block_tag", 
+                    background="gray95", 
+                    foreground="black"
+                )
+                self.chat_text.insert("end", "\n" + highlighted_code + "\n", "code_block_tag")
+
+        # Ajouter une nouvelle ligne à la fin
+        self.chat_text.insert("end", "\n")
+
+        # Ajouter le bouton de pensée si disponible et si c'est un message de l'IA
+        if role != 'user' and think_content and think_content.strip():
+            unique_tag = f"think_button_{id(think_content)}"
+            think_button_text = " 💭 Pensées "
+            self.chat_text.insert("end", think_button_text, unique_tag)
+
+            # Configurer le tag du bouton de pensée
+            self.chat_text.tag_config(unique_tag, 
+                foreground="blue", 
+                underline=1
+            )
+            
+            # Lier les événements
+            self.chat_text.tag_bind(unique_tag, "<Button-1>", 
+                lambda event, tc=think_content: self._show_think_content(tc)
+            )
+            self.chat_text.tag_bind(unique_tag, "<Enter>", 
+                lambda event: self.chat_text.config(cursor="hand2")
+            )
+            self.chat_text.tag_bind(unique_tag, "<Leave>", 
+                lambda event: self.chat_text.config(cursor="")
+            )
+
+        # Ajouter un séparateur visuel après chaque message
+        if not is_animation:
+            self.chat_text.tag_config("separator", 
+                foreground="#CCCCCC",
+                justify="center"
+            )
+            self.chat_text.insert("end", "\n" + "─" * 30 + "\n", "separator")
+
         self.chat_text.configure(state="disabled")
         self.chat_text.see("end")
 
@@ -472,20 +731,10 @@ class OllamaChatApp:
             response (str): AI's response message
             think_content (str, optional): Internal thought content
         """
-        # Cancel typing animation
-        if hasattr(self, 'typing_job'):
-            self.root.after_cancel(self.typing_job)
+        # Stop thinking animation
+        self.stop_thinking()
         
-        # Remove typing indicator
-        self.chat_text.configure(state="normal")
-        last_line = self.chat_text.get("end-2l", "end-1l")
-        if "🤖 Thinking" in last_line:
-            self.chat_text.delete("end-2l", "end")
-        
-        # Restore original text area weight
-        self.chat_text_frame.grid_rowconfigure(0, weight=1)
-        
-        # Display AI message
+        # Display response in main thread
         self.display_message('assistant', response, think_content)
         
         # Re-enable input
@@ -494,103 +743,6 @@ class OllamaChatApp:
         
         # Focus back on message entry
         self.message_entry.focus_set()
-
-    def display_message(self, role, content, think_content=None):
-        """
-        Display a message in the chat text area
-        
-        Args:
-            role (str): Message role (user/assistant)
-            content (str): Message content
-            think_content (str, optional): Internal thought content
-        """
-        self.chat_text.configure(state="normal")
-        
-        # Always insert at the end
-        self.chat_text.insert("end", "\n")
-        
-        # Determine formatting based on role
-        if role == 'user':
-            self.chat_text.insert("end", f"You: {content}\n", "user_tag")
-        else:
-            # Insert AI message
-            ai_message = f"AI: {content}\n"
-            self.chat_text.insert("end", ai_message, "ai_tag")
-            
-            # Add think content button if available
-            if think_content and think_content.strip():
-                # Create a unique tag for this specific think button
-                unique_tag = f"think_button_{id(think_content)}"
-                
-                # Insert think button text with unique tag
-                think_button_text = " 💭 Thoughts "
-                self.chat_text.insert("end", think_button_text, unique_tag)
-                
-                # Configure the unique tag
-                self.chat_text.tag_config(unique_tag, 
-                    foreground="white", 
-                    background="gray"
-                )
-                
-                # Bind events using lambda with unique tag
-                self.chat_text.tag_bind(unique_tag, "<Button-1>", 
-                    lambda event, tc=think_content: self._show_think_content(tc)
-                )
-                self.chat_text.tag_bind(unique_tag, "<Enter>", 
-                    lambda event, tag=unique_tag: self._on_think_button_enter(tag)
-                )
-                self.chat_text.tag_bind(unique_tag, "<Leave>", 
-                    lambda event, tag=unique_tag: self._on_think_button_leave(tag)
-                )
-        
-        # Always add an extra newline and scroll to bottom
-        self.chat_text.insert("end", "\n")
-        self.chat_text.configure(state="disabled")
-        self.chat_text.see("end")
-
-    def _on_think_button_enter(self, tag):
-        """
-        Handle mouse enter event for think button
-        
-        Args:
-            tag (str): Unique tag for the think button
-        """
-        self.chat_text.configure(cursor="hand2")
-        self.chat_text.tag_config(tag, background="darkgray")
-
-    def _on_think_button_leave(self, tag):
-        """
-        Handle mouse leave event for think button
-        
-        Args:
-            tag (str): Unique tag for the think button
-        """
-        self.chat_text.configure(cursor="")
-        self.chat_text.tag_config(tag, background="gray")
-
-    def _show_think_content(self, think_content):
-        """
-        Show think content in a popup window
-        
-        Args:
-            think_content (str): Internal thought content
-        """
-        # Create a new window for think content
-        think_window = ctk.CTkToplevel(self.root)
-        think_window.title("Internal Thoughts")
-        think_window.geometry("500x300")
-        
-        # Text widget to display think content
-        think_text = ctk.CTkTextbox(
-            think_window, 
-            state="normal", 
-            wrap="word"
-        )
-        think_text.pack(padx=10, pady=10, fill="both", expand=True)
-        
-        # Insert think content
-        think_text.insert("1.0", think_content)
-        think_text.configure(state="disabled")
 
     def process_responses(self):
         """Process responses from the model in a separate thread"""
@@ -660,9 +812,8 @@ class OllamaChatApp:
             wrap="word",
             corner_radius=10,
             yscrollcommand=self.chat_text_scrollbar.set,
-            font=ctk.CTkFont(size=14),  # Increased font size
-            text_color="white",  # Ensure readability
-            fg_color=("#f0f0f0", "#2c2c2c")  # Light background in light mode, dark in dark mode
+            text_color="black",
+            fg_color=("#f0f0f0", "#2c2c2c")
         )
         self.chat_text.grid(row=0, column=0, sticky="nsew")
         
@@ -700,7 +851,6 @@ class OllamaChatApp:
             placeholder_text="Type your message...",
             width=600,
             height=40,
-            font=ctk.CTkFont(size=14),
             corner_radius=20,
             border_width=2,
             border_color=("gray70", "gray30")
@@ -716,7 +866,6 @@ class OllamaChatApp:
             width=100,
             height=40,
             corner_radius=20,
-            font=ctk.CTkFont(size=14, weight="bold"),
             hover_color=("blue3", "blue4")
         )
         self.send_button.grid(row=0, column=1, padx=5, pady=5)

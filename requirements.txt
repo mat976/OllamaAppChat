@@ -4,3 +4,5 @@ CTkMessagebox==2.5
 uuid==1.30
 python-dotenv==1.0.0
 logging==0.5.1.2
+markdown
+pygments
