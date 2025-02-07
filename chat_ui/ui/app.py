@@ -3,6 +3,7 @@ import customtkinter as ctk
 import queue
 import threading
 import time
+from tkinter import filedialog
 
 from chat_ui.utils.markdown_parser import MarkdownParser
 from chat_ui.chat_manager.manager import ChatManager
@@ -54,6 +55,9 @@ class OllamaChatApp:
         # Add animation tracking
         self.animation_running = False
         self.animation_thread = None
+
+        # List to store attached file paths
+        self.attached_files = []
 
     def _setup_main_layout(self):
         # Main grid layout
@@ -192,6 +196,27 @@ class OllamaChatApp:
         self.message_entry.grid(row=0, column=0, padx=(0, 10), pady=5, sticky="ew")
         self.message_entry.bind("<Return>", self.send_message)
 
+        # Attach File Button
+        self.attach_button = ctk.CTkButton(
+            self.input_frame, 
+            text="📎", 
+            command=self.attach_file,
+            width=50,
+            height=40,
+            corner_radius=20,
+            fg_color=("gray75", "gray30"),
+            hover_color=("gray70", "gray25")
+        )
+        self.attach_button.grid(row=0, column=2, padx=5, pady=5)
+
+        # Listbox to display attached files
+        self.files_listbox = ctk.CTkScrollableFrame(
+            self.input_frame,
+            width=200,
+            height=100
+        )
+        self.files_listbox.grid(row=1, column=0, columnspan=3, padx=5, pady=5, sticky="ew")
+
         # Send Button with improved styling
         self.send_button = ctk.CTkButton(
             self.input_frame, 
@@ -202,7 +227,7 @@ class OllamaChatApp:
             corner_radius=20,
             hover_color=("blue3", "blue4")
         )
-        self.send_button.grid(row=0, column=1, padx=5, pady=5)
+        self.send_button.grid(row=0, column=3, padx=5, pady=5)
 
     def load_existing_chats(self):
         """
@@ -294,10 +319,25 @@ class OllamaChatApp:
             self.load_existing_chats()
 
         message = self.message_entry.get().strip()
-        if not message:
+        if not message and not self.attached_files:
             return
 
-        self.input_handler.send_message(message)
+        # Prepare the message data
+        message_data = {
+            "text": message,
+            "files": self.attached_files.copy()  # Send a copy of the list
+        }
+
+        # Send the message using the input handler
+        self.input_handler.send_message(message_data)
+
+        # Clear the message entry and attached files after sending
+        self.message_entry.delete(0, ctk.END)
+        
+        # Clear the attached files list and its display
+        self.attached_files.clear()
+        for widget in self.files_listbox.winfo_children():
+            widget.destroy()
 
     def load_selected_chat(self, chat):
         self.current_chat = chat
@@ -342,3 +382,64 @@ class OllamaChatApp:
 
     def show_welcome_message(self):
         self.message_display.show_welcome_message()
+
+    def attach_file(self):
+        file_path = filedialog.askopenfilename()
+        if file_path:
+            # Check if file is already attached
+            if file_path not in self.attached_files:
+                self.attached_files.append(file_path)
+                
+                # Create a frame for each attached file
+                file_frame = ctk.CTkFrame(self.files_listbox, fg_color="transparent")
+                file_frame.pack(fill="x", padx=5, pady=2)
+                
+                # File name label
+                file_label = ctk.CTkLabel(
+                    file_frame, 
+                    text=os.path.basename(file_path), 
+                    anchor="w"
+                )
+                file_label.pack(side="left", expand=True, fill="x")
+                
+                # Remove file button
+                remove_button = ctk.CTkButton(
+                    file_frame, 
+                    text="✖", 
+                    width=30, 
+                    height=20, 
+                    fg_color="red", 
+                    hover_color="darkred",
+                    command=lambda path=file_path: self.remove_attached_file(path)
+                )
+                remove_button.pack(side="right", padx=5)
+
+    def remove_attached_file(self, file_path):
+        if file_path in self.attached_files:
+            self.attached_files.remove(file_path)
+            # Refresh the files listbox
+            for widget in self.files_listbox.winfo_children():
+                widget.destroy()
+            
+            # Recreate the file list
+            for path in self.attached_files:
+                file_frame = ctk.CTkFrame(self.files_listbox, fg_color="transparent")
+                file_frame.pack(fill="x", padx=5, pady=2)
+                
+                file_label = ctk.CTkLabel(
+                    file_frame, 
+                    text=os.path.basename(path), 
+                    anchor="w"
+                )
+                file_label.pack(side="left", expand=True, fill="x")
+                
+                remove_button = ctk.CTkButton(
+                    file_frame, 
+                    text="✖", 
+                    width=30, 
+                    height=20, 
+                    fg_color="red", 
+                    hover_color="darkred",
+                    command=lambda p=path: self.remove_attached_file(p)
+                )
+                remove_button.pack(side="right", padx=5)

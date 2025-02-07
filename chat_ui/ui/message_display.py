@@ -1,5 +1,8 @@
 import customtkinter as ctk
 from chat_ui.utils.markdown_parser import MarkdownParser
+import os
+import customtkinter as ctk
+from tkinter import messagebox
 
 class MessageDisplay:
     def __init__(self, chat_text_widget):
@@ -62,8 +65,17 @@ class MessageDisplay:
         self.chat_text.configure(state="disabled")
         self.chat_text.see("end")
 
-    def _get_tag_and_prefix(self, role, is_animation):
-        """Determine tag and prefix based on message role"""
+    def _get_tag_and_prefix(self, role, is_animation=False):
+        """
+        Determine tag and prefix based on message role
+        
+        Args:
+            role (str): Message role (user/assistant)
+            is_animation (bool, optional): Flag for animation messages. Defaults to False.
+        
+        Returns:
+            tuple: A tuple containing the tag and prefix
+        """
         if role == 'user':
             return "user_tag", "👤 Vous: "
         else:
@@ -147,3 +159,58 @@ class MessageDisplay:
         self.chat_text.insert("end", "To get started, click the + New Chat button to create a new chat session.\n\n")
         self.chat_text.insert("end", "You can also load existing chats from the sidebar.\n\n")
         self.chat_text.configure(state="disabled")
+
+    def display_file(self, role, file_path):
+        """
+        Display an attached file in the chat text area
+        
+        Args:
+            role (str): Message role (user/assistant)
+            file_path (str): Path to the attached file
+        """
+        self.chat_text.configure(state="normal")
+
+        # Determine tag and prefix based on role (without animation)
+        tag, prefix = self._get_tag_and_prefix(role)
+
+        # Insert a newline before the file if it's not the first message
+        if self.chat_text.get("1.0", "end-1c").strip():
+            self.chat_text.insert("end", "\n")
+
+        # Insert file prefix
+        self.chat_text.insert("end", f"{prefix}", tag)
+
+        # Get file details
+        file_name = os.path.basename(file_path)
+        file_size = os.path.getsize(file_path)
+        file_type = os.path.splitext(file_name)[1].upper().replace('.', '')
+
+        # Create a clickable file attachment display
+        file_display_text = f"📎 Attached File: {file_name} ({file_type}, {file_size} bytes)\n"
+        start_index = self.chat_text.index("end")
+        self.chat_text.insert("end", file_display_text, tag)
+        end_index = self.chat_text.index("end")
+
+        # Make the file name clickable
+        file_tag = f"file_{id(file_path)}"
+        self.chat_text.tag_add(file_tag, start_index, end_index)
+        self.chat_text.tag_bind(file_tag, "<Button-1>", lambda e, path=file_path: self.open_file(path))
+        self.chat_text.tag_config(file_tag, foreground="blue", underline=1)
+
+        # Add a visual separator
+        self.chat_text.insert("end", "\n" + "─" * 30 + "\n", "separator")
+
+        self.chat_text.configure(state="disabled")
+        self.chat_text.see("end")
+
+    def open_file(self, file_path):
+        """
+        Open the attached file
+        
+        Args:
+            file_path (str): Path to the file to open
+        """
+        try:
+            os.startfile(file_path)
+        except Exception as e:
+            messagebox.showerror("Error", f"Cannot open file: {e}")

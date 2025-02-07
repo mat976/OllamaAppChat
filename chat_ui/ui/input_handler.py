@@ -6,12 +6,12 @@ class InputHandler:
     def __init__(self, app):
         self.app = app
 
-    def send_message(self, message):
+    def send_message(self, message_data):
         """
         Send a message in the current chat
         
         Args:
-            message (str): Message to send
+            message_data (dict or str): Message to send, can be a dictionary with 'text' and 'files' or a string
         """
         # Clear input
         self.app.message_entry.delete(0, 'end')
@@ -23,11 +23,24 @@ class InputHandler:
         # Start thinking animation
         self.start_thinking()
 
+        # Extract message and files
+        if isinstance(message_data, dict):
+            message = message_data.get("text", "")
+            files = message_data.get("files", [])
+        else:
+            message = message_data
+            files = []
+
         # Add user message to chat
         self.app.current_chat = self.app.chat_manager.add_message(
             self.app.current_chat, 'user', message
         )
         self.app.message_display.display_message('user', message)
+
+        # Handle attached files
+        if files:
+            for file_path in files:
+                self.app.message_display.display_file('user', file_path)
 
         # Prepare messages for model
         messages = self.app.current_chat['messages']
