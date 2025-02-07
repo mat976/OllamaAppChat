@@ -1,60 +1,90 @@
-# Ollama Chat App
+# 🤖 Ollama AI Chat App
 
-## Description
-Une application de chat conversationnel utilisant Ollama et CustomTkinter.
+## 🌟 Présentation du Projet
 
-## Structure du Projet
+### Une application de chat conversationnel alimentée par l'IA locale
+
+![Logo de l'Application](docs/logo.png)
+
+## 🚀 Fonctionnalités Principales
+
+- **Chat IA Local** : Conversations avec des modèles Ollama hébergés localement
+- **Interface Moderne** : Design épuré et responsive
+- **Gestion Avancée des Chats** : Sauvegarde, liste et navigation entre les conversations
+- **Support Markdown** : Rendu riche des messages avec coloration syntaxique
+
+## 🎥 Inspirations et Sources
+
+### Vidéos YouTube
+
+1. **Interface Utilisateur et UX**
+   - [Make Tkinter Look 10x Better in 5 Minutes (CustomTkinter)](https://www.youtube.com/watch?v=Miydkti_QVE)
+
+2. **Développement de Chatbots**
+   - [Create a LOCAL Python AI Chatbot In Minutes Using Ollama](https://www.youtube.com/watch?v=d0o89z134CQ)
+
+## 🛠 Technologies Utilisées
+
+- **Langage** : Python 3.10+
+- **Interface Graphique** : CustomTkinter
+- **IA Locale** : Ollama
+- **Parsing** : Markdown, Pygments
+- **Gestion des Chats** : JSON, UUID
+
+## 🏗 Architecture du Projet
+
 ```
 ollama_chat_app/
 │
-├── .gitignore
-├── main.py
+├── main.py                   # Point d'entrée principal
 │
 ├── chat_ui/
-│   ├── __init__.py
-│   ├── ui/
-│   │   ├── __init__.py
-│   │   ├── app.py
-│   │   ├── markdown_parser.py
-│   │   ├── message_display.py
-│   │   ├── input_area.py
-│   │   └── chat_list.py
+│   ├── ui/                   # Composants d'interface
+│   │   ├── app.py            # Fenêtre principale
+│   │   ├── message_display.py# Affichage des messages
+│   │   └── ...
 │   │
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   ├── threading_utils.py
-│   │   └── animation_utils.py
+│   ├── utils/                # Utilitaires
+│   │   └── markdown_parser.py# Parseur Markdown
 │   │
-│   └── config/
-│       ├── __init__.py
-│       └── appearance.py
+│   └── chat_manager/         # Gestion des conversations
+│       └── manager.py        # Logique de sauvegarde/chargement
 │
-├── requirements.txt
-└── README.md
+├── models/                   # Interactions modèles IA
+└── requirements.txt          # Dépendances du projet
 ```
 
-## Installation
-
-1. Clonez le dépôt
-2. Créez un environnement virtuel
-3. Installez les dépendances :
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Utilisation
+## 🔧 Installation
 
 ```bash
+# Cloner le dépôt
+git clone https://github.com/votre-username/OllamaAppChat.git
+
+# Créer un environnement virtuel
+python -m venv venv
+source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+
+# Installer les dépendances
+pip install -r requirements.txt
+
+# Lancer l'application
 python main.py
 ```
 
-## Nettoyage des Caches
+## 🤝 Contributions
 
-Pour supprimer les fichiers `__pycache__` :
+Les contributions sont les bienvenues ! Veuillez consulter [CONTRIBUTING.md](CONTRIBUTING.md)
 
-```bash
-python clean_pycache.py
-```
+## 📜 Licence
 
-## Licence
-[À DÉFINIR]
+Ce projet est sous licence MIT. Voir [LICENSE](LICENSE) pour plus de détails.
+
+## 🙏 Remerciements
+
+- [Ollama](https://ollama.ai/) pour les modèles IA
+- [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) pour l'interface
+- Communautés Open Source Python et IA
+
+---
+
+**Développé avec ❤️ par la Communauté Open Source**
