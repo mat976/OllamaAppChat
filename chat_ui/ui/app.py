@@ -231,26 +231,39 @@ class OllamaChatApp:
             self.message_display.clear_chat()
 
     def populate_models(self):
+        """
+        Populate the model selection dropdown with available models
+        """
         try:
+            # Récupérer les modèles disponibles
             models = OllamaModelHandler.get_available_models()
             
+            # Gérer les différents cas de modèles
             if models:
+                # Configurer les modèles disponibles
                 self.model_combo.configure(values=models)
-                self.model_combo.set(models[0])
+                self.model_combo.set(models[0])  # Sélectionner le premier modèle par défaut
             else:
-                self.model_combo.configure(values=["No models found"])
-                self.model_combo.set("No models found")
+                # Aucun modèle trouvé
+                default_options = ["No models found", "default"]
+                self.model_combo.configure(values=default_options)
+                self.model_combo.set(default_options[0])
+        
         except Exception as e:
+            # Gérer les erreurs de chargement des modèles
+            error_options = ["Error loading models", "default"]
             print(f"Error populating models: {e}")
-            self.model_combo.configure(values=["Error loading models"])
-            self.model_combo.set("Error loading models")
+            self.model_combo.configure(values=error_options)
+            self.model_combo.set(error_options[0])
 
     def create_new_chat(self):
         """
         Create a new chat session
         """
-        # Utiliser cget pour récupérer les valeurs du modèle
+        # Récupérer le modèle sélectionné
         model = self.model_combo.get()
+        
+        # Utiliser un modèle par défaut si nécessaire
         if model in ["No models found", "Error loading models"]:
             model = 'default'
         
@@ -267,19 +280,16 @@ class OllamaChatApp:
         
         return new_chat
 
-    def load_selected_chat(self, chat):
-        self.current_chat = chat
-        self.message_display.load_chat_messages(chat)
-        
-        # Vérifier si le modèle existe dans les valeurs disponibles
-        model = chat.get('model')
-        if model and model in self.model_combo.cget("values").split():
-            self.model_combo.set(model)
-
     def send_message(self, event=None):
         if not self.current_chat:
-            # Utiliser cget pour récupérer les valeurs du modèle
-            model = self.model_combo.get() if self.model_combo.get() not in ["No models found", "Error loading models"] else 'default'
+            # Récupérer le modèle sélectionné
+            model = self.model_combo.get()
+            
+            # Utiliser un modèle par défaut si nécessaire
+            if model in ["No models found", "Error loading models"]:
+                model = 'default'
+            
+            # Créer un nouveau chat
             self.current_chat = self.chat_manager.create_new_chat(model)
             self.load_existing_chats()
 
@@ -288,6 +298,18 @@ class OllamaChatApp:
             return
 
         self.input_handler.send_message(message)
+
+    def load_selected_chat(self, chat):
+        self.current_chat = chat
+        self.message_display.load_chat_messages(chat)
+        
+        # Vérifier si le modèle existe dans les valeurs disponibles
+        model = chat.get('model')
+        available_models = self.model_combo.cget("values")
+        
+        # Vérifier si le modèle existe dans la liste des modèles disponibles
+        if model and model in available_models:
+            self.model_combo.set(model)
 
     def process_responses(self):
         while True:
