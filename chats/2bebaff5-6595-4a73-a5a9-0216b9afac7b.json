@@ -1,0 +1,18 @@
+{
+    "id": "2bebaff5-6595-4a73-a5a9-0216b9afac7b",
+    "model": "deepseek-r1:1.5b",
+    "messages": [
+        {
+            "role": "user",
+            "content": "parle moi de tous stpp",
+            "timestamp": "2025-02-07T09:47:32.893395"
+        },
+        {
+            "role": "assistant",
+            "content": "Oui, je comprends que vous souhaitriez un morceau de talko. Voici un exemple : --- **Parole :** Bonjour ! Comment puis-je vous aider aujourd'hui ? Si vous avez besoin d'une information ou de explication, n'hésitez pas à me le dire ! --- Si vous avez besoin d'un délicement spécifique ou d'une réponse à une question précise, n'hésitez pas à me le dire ! 😊",
+            "timestamp": "2025-02-07T09:47:37.211565"
+        }
+    ],
+    "created_at": "2025-02-07T09:47:26.737544",
+    "last_updated": "2025-02-07T09:47:37.211565"
+}

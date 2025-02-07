@@ -1,0 +1,28 @@
+{
+    "id": "7500fbaf-15a4-4e41-98a8-e02c03ff1c9d",
+    "model": "deepseek-r1:1.5b",
+    "created_at": "2025-02-07T08:38:48.129097",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": "2025-02-07T08:38:48.200732"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today? 😊",
+            "timestamp": "2025-02-07T08:38:48.980504"
+        },
+        {
+            "role": "user",
+            "content": "can you make me a resume of an ingenieur type",
+            "timestamp": "2025-02-07T08:39:17.383998"
+        },
+        {
+            "role": "assistant",
+            "content": "Certainly! You can create a resume tailored for an engineering field by including specific details about your education, work experience, skills, and any relevant certifications or achievements. Here's a general structure you can use: --- **[Your Name]** [Your Address] [City, State, ZIP Code] [Phone Number] [Email Address] [LinkedIn Profile (optional)] --- ### **Professional Summary** - Highlight your key skills, experiences, and any important projects or achievements. --- ### **Education** - **Degree:** [Your Degree], [University/Organization], [Month/Year] - **GPA:** [Your GPA/Scale] - **Class Year:** [Year Completed] --- ### **Work Experience** - **[First Job Title]** [Company Name] [City, State] [Month/Year – Present) - [Key Skills or Technologies]: [Specific skills you use daily] - [Specialized Roles]: [Any engineering roles you've held in the past] - [Projects Completed]: [Any significant projects or contributions] --- ### **Skills** - General Engineering Skills: [List of relevant skills, such as problem-solving, teamwork, technical proficiency, etc.] - Soft Skills: [Teamwork, Adaptability, Communication, Leadership] --- ### **Certifications/Experience** - **[Specific Certifications]:** [Details about any certifications or training you've completed.] --- ### **Language or proficiency:** - [Your proficiency level in the language(s) you speak] --- This resume is designed to appeal specifically to engineering professionals, highlighting your technical expertise and how it aligns with their expectations. Adjust the details to best reflect your background and goals!",
+            "timestamp": "2025-02-07T08:39:41.874582"
+        }
+    ],
+    "title": "hello"
+}

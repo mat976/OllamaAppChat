@@ -1,0 +1,18 @@
+{
+    "id": "643f0d87-7173-4cd1-ab1d-98f75a126111",
+    "model": "deepseek-r1:1.5b",
+    "created_at": "2025-02-07T08:53:30.414296",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": "2025-02-07T08:53:30.536686"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today? 😊",
+            "timestamp": "2025-02-07T08:53:31.312067"
+        }
+    ],
+    "title": "hello"
+}

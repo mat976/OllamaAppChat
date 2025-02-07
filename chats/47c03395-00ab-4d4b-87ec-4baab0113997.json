@@ -1,0 +1,38 @@
+{
+    "id": "47c03395-00ab-4d4b-87ec-4baab0113997",
+    "model": "deepseek-r1:1.5b",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": "2025-02-07T09:46:16.177232"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today? 😊",
+            "timestamp": "2025-02-07T09:46:19.076304"
+        },
+        {
+            "role": "user",
+            "content": "fine and you",
+            "timestamp": "2025-02-07T09:46:23.738458"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! It seems like your message is a bit unclear. Could you please provide more details or clarify what you'd like to discuss? I'm here to help! 😊",
+            "timestamp": "2025-02-07T09:46:25.890482"
+        },
+        {
+            "role": "user",
+            "content": "i am tolkin to you xdd, you are in my pc :) so how my pc going",
+            "timestamp": "2025-02-07T09:47:01.344179"
+        },
+        {
+            "role": "assistant",
+            "content": "It seems like your message got a little tangled! Sorry, but I'm not entirely sure what you're asking about right now. Could you please clarify or provide more details so I can better assist you? 😊",
+            "timestamp": "2025-02-07T09:47:13.255721"
+        }
+    ],
+    "created_at": "2025-02-07T09:46:15.996354",
+    "last_updated": "2025-02-07T09:47:13.255721"
+}

@@ -1,0 +1,28 @@
+{
+    "id": "706bb0b9-798c-492c-9ce8-6ea169c19b8a",
+    "model": "deepseek-r1:1.5b",
+    "created_at": "2025-02-07T09:09:23.268534",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": "2025-02-07T09:09:23.432227"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today? 😊",
+            "timestamp": "2025-02-07T09:09:25.521575"
+        },
+        {
+            "role": "user",
+            "content": "hi",
+            "timestamp": "2025-02-07T09:10:11.119195"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today? 😊",
+            "timestamp": "2025-02-07T09:10:12.235980"
+        }
+    ],
+    "title": "hello"
+}

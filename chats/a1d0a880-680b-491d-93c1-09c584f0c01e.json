@@ -1,0 +1,28 @@
+{
+    "id": "a1d0a880-680b-491d-93c1-09c584f0c01e",
+    "model": "deepseek-r1:1.5b",
+    "created_at": "2025-02-07T08:36:02.524216",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": "2025-02-07T08:36:02.588463"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today? 😊",
+            "timestamp": "2025-02-07T08:36:05.204993"
+        },
+        {
+            "role": "user",
+            "content": "i dont know xdd",
+            "timestamp": "2025-02-07T08:36:11.471686"
+        },
+        {
+            "role": "assistant",
+            "content": "Hi there! I want to help you. Could you please provide more details about what you're asking or discussing? Whether it's for a project, a story, or just general knowledge, I'm here to help! Let me know how I can assist you. 😊",
+            "timestamp": "2025-02-07T08:36:14.396487"
+        }
+    ],
+    "title": "hello"
+}

@@ -3,32 +3,21 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environment
+# Environnement virtuel
 venv/
 .env/
-env/
 
-# IDE-specific files
+# Fichiers de configuration IDE
 .vscode/
 .idea/
 
-# Logs and databases
+# Fichiers de log
 *.log
-*.sqlite3
 
-# OS generated files
+# Fichiers temporaires
+*.tmp
+*~
+
+# Fichiers de système
 .DS_Store
 Thumbs.db
-
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Ollama chat app specific
-.ollama_chat_app/
-/__pycache__
-/chats

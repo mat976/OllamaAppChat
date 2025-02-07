@@ -1,0 +1,18 @@
+{
+    "id": "b186ee84-6dbc-4784-b4e3-f33263f79e9e",
+    "model": "llama3.2:3b",
+    "created_at": "2025-02-06T14:46:00.095950",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": "2025-02-06T14:46:02.837898"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today?",
+            "timestamp": "2025-02-06T14:46:06.707324"
+        }
+    ],
+    "title": "hello"
+}

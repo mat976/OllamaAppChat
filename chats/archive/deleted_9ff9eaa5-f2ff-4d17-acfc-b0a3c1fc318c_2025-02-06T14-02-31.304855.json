@@ -1,0 +1,28 @@
+{
+    "id": "9ff9eaa5-f2ff-4d17-acfc-b0a3c1fc318c",
+    "model": "deepseek-r1:1.5b",
+    "created_at": "2025-02-06T14:02:18.755104",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hello",
+            "timestamp": "2025-02-06T14:02:18.796419"
+        },
+        {
+            "role": "assistant",
+            "content": "Hello! How can I assist you today? 😊",
+            "timestamp": "2025-02-06T14:02:19.385202"
+        },
+        {
+            "role": "user",
+            "content": "fine",
+            "timestamp": "2025-02-06T14:02:26.883333"
+        },
+        {
+            "role": "assistant",
+            "content": "It seems like you've just typed \"fine.\" Could you clarify or provide more details so I can better assist you? For example, are you asking for help with something specific, or do you need information on a particular topic? Let me know how I can assist! 😊",
+            "timestamp": "2025-02-06T14:02:29.425442"
+        }
+    ],
+    "title": "hello"
+}
