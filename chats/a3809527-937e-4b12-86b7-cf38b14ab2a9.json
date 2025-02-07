@@ -1,0 +1,18 @@
+{
+    "id": "a3809527-937e-4b12-86b7-cf38b14ab2a9",
+    "model": "deepseek-r1:1.5b",
+    "messages": [
+        {
+            "role": "user",
+            "content": "despacito",
+            "timestamp": "2025-02-07T10:02:47.590922"
+        },
+        {
+            "role": "assistant",
+            "content": "¡Gracias por el encuesta! Si tienes preguntas adicionales, no dudes a pedirme. ¿En qué puedo ayudarte hoy? 😊",
+            "timestamp": "2025-02-07T10:02:49.297081"
+        }
+    ],
+    "created_at": "2025-02-07T10:02:42.385274",
+    "last_updated": "2025-02-07T10:02:49.297081"
+}

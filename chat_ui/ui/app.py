@@ -249,9 +249,9 @@ class OllamaChatApp:
         """
         Create a new chat session
         """
-        # Get the selected model or use default
-        model = self.model_combo.get() 
-        if model == "No models found":
+        # Utiliser cget pour récupérer les valeurs du modèle
+        model = self.model_combo.get()
+        if model in ["No models found", "Error loading models"]:
             model = 'default'
         
         # Create a new chat
@@ -271,12 +271,15 @@ class OllamaChatApp:
         self.current_chat = chat
         self.message_display.load_chat_messages(chat)
         
-        if chat.get('model') in self.model_combo['values']:
-            self.model_combo.set(chat['model'])
+        # Vérifier si le modèle existe dans les valeurs disponibles
+        model = chat.get('model')
+        if model and model in self.model_combo.cget("values").split():
+            self.model_combo.set(model)
 
     def send_message(self, event=None):
         if not self.current_chat:
-            model = self.model_combo.get() if self.model_combo.get() != "No models found" else 'default'
+            # Utiliser cget pour récupérer les valeurs du modèle
+            model = self.model_combo.get() if self.model_combo.get() not in ["No models found", "Error loading models"] else 'default'
             self.current_chat = self.chat_manager.create_new_chat(model)
             self.load_existing_chats()
 
