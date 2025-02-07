@@ -1,8 +1,17 @@
+# Version Python minimale
+python>=3.10
+
+# Interface Graphique
 customtkinter==5.2.1
 CTkMessagebox==2.5
+
+# Traitement Markdown
 markdown==3.5.2
 pygments==2.17.2
+
+# Utilitaires
 pyperclip==1.8.2
-uuid==1.30
 python-dotenv==1.0.0
-logging==0.5.1.2
+
+# Autres dépendances potentielles
+requests>=2.31.0

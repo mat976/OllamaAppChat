@@ -59,9 +59,6 @@ ollama_chat_app/
 # Cloner le dépôt
 git clone https://github.com/votre-username/OllamaAppChat.git
 
-# Créer un environnement virtuel
-python -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
 
 # Installer les dépendances
 pip install -r requirements.txt
